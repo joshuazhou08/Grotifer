@@ -16,6 +16,7 @@ WSL is needed for windows development.
 ```bash
 wsl --install
 ```
+When you open the repository in vscode or any platform, make sure to build in WSL terminal.
 
 ### Give your Windows an ssh key if not already
 ```bash
