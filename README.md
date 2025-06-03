@@ -17,7 +17,7 @@ WSL is needed for windows development.
 wsl --install
 ```
 
-### Give your WSL an ssh key
+### Give your Windows an ssh key if not already
 ```bash
 ssh-keygen -t ed25519 -C "your_email@example.com"
 eval "$(ssh-agent -s)"
