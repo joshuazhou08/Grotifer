@@ -40,3 +40,46 @@ Download libusb (used my labjack.so in the hardware sol lib)
 sudo apt update
 sudo apt install libusb-1.0-0
 ```
+
+## Deploying On The Pi
+On your windows machine, download the **sftp extension** by **Natizyskunk** in vs code.
+
+Create a new folder called Pi and open it with vs code. Inside the folder, do
+ctrl + shift + p -> SFTP:config
+
+This opens up sftp.json. Copy and paste the following into it:
+```bash
+{
+  "name": "My Pi via SFTP",
+  "host": "192.168.8.170",
+  "protocol": "sftp",
+  "port": 22,
+  "username": "pi",
+  "password": "grotifer_2024",
+  "remotePath": "/home/pi/Desktop",
+
+  "uploadOnSave": true,
+  "ignore": [
+    "**/.vscode/**",
+    "**/.git/**",
+    "**/.DS_Store"
+  ]
+}
+```
+
+Then, do ctrl + shift + p -> SFTP:Download Project. Make sure you are connected to the Grotifer Local Network.
+
+Open a new terminal in vscode. SSH into the pi:
+```bash
+ssh pi@192.168.8.170
+```
+
+Once in, you will be in /home/pi/Desktop. The Grotifer-main folder has the cmake project.
+In Grotifer-main, run 
+```bash
+cmake -S . -B build
+cmake --build build -j$(nproc)
+./build/mainExe
+```
+
+to run the program. **THIS IS ALL DONE IN VS CODE ON YOUR REMOTE MACHINE**.
