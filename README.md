@@ -83,3 +83,14 @@ cmake --build build -j$(nproc)
 ```
 
 to run the program. **THIS IS ALL DONE IN VS CODE ON YOUR REMOTE MACHINE**.
+
+### Cmake build clock skew error
+Run:
+```bash
+find . -exec touch {} +
+```
+
+### Updating your local Pi folder with changes from the actual pi:
+ctrl + shift + p SFTP: Download Project
+WARNING this rewrites everything in your local directory.
+Ideally, we just use the Pi folder for live experiments and use this repository for actual code.
