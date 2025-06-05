@@ -91,6 +91,6 @@ find . -exec touch {} +
 ```
 
 ### Updating your local Pi folder with changes from the actual pi:
-ctrl + shift + p SFTP: Download Project
+** ALWAYS RUN ON START** ctrl + shift + p SFTP: Download Project.
 WARNING this rewrites everything in your local directory.
 Ideally, we just use the Pi folder for live experiments and use this repository for actual code.
