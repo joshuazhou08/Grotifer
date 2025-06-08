@@ -10,8 +10,14 @@ set(MASTER_LIB_DIR "${CMAKE_SOURCE_DIR}/MasterLibrary")
 #
 # 2) Add an executable that uses your existing src/main.cpp
 #
-file(GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB TASK_SOURCES "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
+file(GLOB MAIN_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
+set(SOURCES ${MAIN_SOURCES} ${TASK_SOURCES})
 add_executable(mainExe ${SOURCES})
+target_include_directories(mainExe
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+)
 
 
 # 4) If your hardware code (Actuators.cpp, Sensors.cpp, u6.c) also
