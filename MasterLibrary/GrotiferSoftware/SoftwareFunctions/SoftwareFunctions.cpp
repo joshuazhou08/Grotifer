@@ -64,7 +64,12 @@ double PIControl::PICalculation(double setpoint, double actVal)
 
     p_time = GetTimeNow();         // Get the time when starting to calculate the control signal
     p_deltaT = p_time - p_preTime; // Calculate the actual time it take between two calls
-    p_preTime = p_time;            // Assign current time into previous time
+
+    if (p_deltaT > 1) // If deltaT is called 1 second apart it means p_preTime is invalid (first run)
+    {
+        p_deltaT = 0;
+    }
+    p_preTime = p_time; // Assign current time into previous time
 
     p_error = p_setpoint - p_actVal; // Calculate error
 
