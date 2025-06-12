@@ -16,4 +16,6 @@ struct AttitudeConfig
     // Z-momentum wheel
     double momOfInertiaZ = 3.6383e-5; // Moment of inertia for Z, [kg.m^2]
     long int maxVelZ = 4600;          // Maximum speed for Z-momentum wheel, [rpm]
+
+    double fc = 4.0; // Cut off frequency for angular velocity filtering
 };

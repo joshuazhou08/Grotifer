@@ -20,6 +20,9 @@ protected:
     int nextState;
     int numScans;
 
+    // log file line width
+    unsigned int w = 25;
+
 public:
     BaseTask(const char *name, int taskID = 0);
     virtual ~BaseTask();
