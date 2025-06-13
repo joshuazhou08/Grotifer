@@ -27,7 +27,7 @@ int main() {
     LowPriority->Append(Task2);
     Intermittent->Append(Task3);
 
-    // Scheduler main loop (simple example)
+    // Example scheduler main loop
     double EndTime = 5.0;  // Run for 5 seconds
     while (GetTimeNow() < EndTime) {
         // Run all tasks in LowPriority list
@@ -47,7 +47,6 @@ int main() {
                 break;
             }
         }
-        // Small delay to avoid busy loop (optional)
     }
 
     // Cleanup tasks and lists
