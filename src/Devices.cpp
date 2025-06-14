@@ -17,7 +17,7 @@ Devices::~Devices()
 {
 }
 
-// Helper functions
+// Initialize functions
 bool Devices::initLabJack()
 {
     if (!OpenLabJackU6(hDevice))
@@ -104,4 +104,59 @@ bool Devices::initMaxonMotors()
     p_mmZ = std::make_unique<MaxonMotor>(eposErrFile, zMotorParams, 'v');
 
     return true;
+}
+
+// Ownership transfer functions
+std::unique_ptr<MaxonMotor> Devices::releaseMMX()
+{
+    if (!p_mmX)
+    {
+        std::cerr << "Motor X has not been initialized!" << std::endl;
+    }
+    return std::move(p_mmX);
+}
+
+std::unique_ptr<MaxonMotor> Devices::releaseMMY()
+{
+    if (!p_mmY)
+    {
+        std::cerr << "Motor Y has not been initialized!" << std::endl;
+    }
+    return std::move(p_mmY);
+}
+
+std::unique_ptr<MaxonMotor> Devices::releaseMMZ()
+{
+    if (!p_mmZ)
+    {
+        std::cerr << "Motor Z has not been initialized!" << std::endl;
+    }
+    return std::move(p_mmZ);
+}
+
+std::unique_ptr<LabJackU6> Devices::releaseLabJackU6()
+{
+    if (!p_grotiferLJU6)
+    {
+        std::cerr << "Labjack has not been initialized!" << std::endl;
+    }
+    return std::move(p_grotiferLJU6);
+}
+
+std::unique_ptr<LabJackInclinometer> Devices::releaseInclinometer()
+{
+    if (!p_inclinometer)
+    {
+        std::cerr << "Inclinometer has not been initialized!" << std::endl;
+    }
+    return std::move(p_inclinometer);
+}
+
+std::unique_ptr<ModbusSunSensor> Devices::releaseSunSensor()
+{
+    if (!p_sunSensor)
+    {
+        std::cerr << "Sun Sensor has not been initialized!" << std::endl;
+    }
+    return std::move(p_sunSensor);
 }

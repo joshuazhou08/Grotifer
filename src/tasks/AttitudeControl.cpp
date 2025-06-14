@@ -4,11 +4,20 @@
 #include <stdexcept>
 #include <filesystem> // optional, for auto-creating log directory
 
+// Forward delcaration for a filter
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 
-AttitudeControl::AttitudeControl(MaxonMotor &mmX, MaxonMotor &mmY, MaxonMotor &mmZ,
-                                 ModbusSunSensor &sunSensor, LabJackInclinometer &inclinometer)
-    : BaseTask("AttitudeControl", 0)
+AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
+                                 std::unique_ptr<MaxonMotor> mmY,
+                                 std::unique_ptr<MaxonMotor> mmZ,
+                                 std::unique_ptr<ModbusSunSensor> sunSensor,
+                                 std::unique_ptr<LabJackInclinometer> inclinometer)
+    : BaseTask("AttitudeControl", 0),
+      p_mmX(std::move(mmX)),
+      p_mmY(std::move(mmY)),
+      p_mmZ(std::move(mmZ)),
+      p_sunSensor(std::move(sunSensor)),
+      p_inclinometer(std::move(inclinometer))
 {
     InitializeLogs();
 
@@ -16,13 +25,6 @@ AttitudeControl::AttitudeControl(MaxonMotor &mmX, MaxonMotor &mmY, MaxonMotor &m
     {
         throw std::runtime_error("Failed to open one or more log files in AttitudeControl.");
     }
-
-    p_mmX = &mmX;
-    p_mmY = &mmY;
-    p_mmZ = &mmZ;
-
-    p_sunSensor = &sunSensor;
-    p_inclinometer = &inclinometer;
 
     deltaTaskTime = config.deltaTaskTime;
     maxAccCmdX = (*p_mmX).GetMaxTorque() / config.momOfInertiaX;

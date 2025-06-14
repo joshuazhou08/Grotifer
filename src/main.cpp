@@ -27,4 +27,11 @@ int main()
     {
         return -1;
     }
+
+    AttitudeControl attitudeControl(
+        devices.releaseMMX(),
+        devices.releaseMMY(),
+        devices.releaseMMZ(),
+        devices.releaseSunSensor(),
+        devices.releaseInclinometer());
 }

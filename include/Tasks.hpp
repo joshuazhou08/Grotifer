@@ -12,10 +12,13 @@
 class AttitudeControl : public BaseTask
 {
 public:
-    AttitudeControl(MaxonMotor &mmX, MaxonMotor &mmY, MaxonMotor &mmZ,
-                    ModbusSunSensor &sunSensor, LabJackInclinometer &inclinometer);
-    ~AttitudeControl() override;
+    AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
+                    std::unique_ptr<MaxonMotor> mmY,
+                    std::unique_ptr<MaxonMotor> mmZ,
+                    std::unique_ptr<ModbusSunSensor> sunSensor,
+                    std::unique_ptr<LabJackInclinometer> inclinometer);
 
+    ~AttitudeControl() override;
     int Run() override;
 
 private:
@@ -37,11 +40,13 @@ private:
     std::ofstream momentumWheelsLog;
 
     // momentum wheels
-    MaxonMotor *p_mmX, *p_mmY, *p_mmZ;
+    std::unique_ptr<MaxonMotor> p_mmX;
+    std::unique_ptr<MaxonMotor> p_mmY;
+    std::unique_ptr<MaxonMotor> p_mmZ;
 
-    // sun sensor
-    ModbusSunSensor *p_sunSensor;
-    LabJackInclinometer *p_inclinometer;
+    // sun sensors
+    std::unique_ptr<ModbusSunSensor> p_sunSensor;
+    std::unique_ptr<LabJackInclinometer> p_inclinometer;
 
     // max accelerations for momentum wheels
     double maxAccCmdX, maxAccCmdY, maxAccCmdZ;
