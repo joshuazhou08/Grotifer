@@ -3,17 +3,28 @@
 #include "Config.hpp"
 #include "Devices.hpp"
 
-#define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
-
 int main()
 {
+    /* Initialize all the devices */
     Devices devices;
 
-    // Now we can access devices here
-    // For example:
-    double angleX = devices.sunSensor.GetAngleX();
-    // or
-    double voltage = devices.grotiferLJU6.GetRawVoltageAtChannel(0);
+    if (!devices.initLabJack())
+    {
+        return -1;
+    }
 
-    
+    if (!devices.initInclinometer())
+    {
+        return -1;
+    }
+
+    if (!devices.initSunSensor())
+    {
+        return -1;
+    }
+
+    if (!devices.initMaxonMotors())
+    {
+        return -1;
+    }
 }

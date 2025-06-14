@@ -107,8 +107,8 @@ int AttitudeControl::Run()
         // Read the Inclinometer
         double thxIncl, thzIncl;
 
-        thxIncl = Deg2Rad((*p_inclinometer).GetAngleY()); // Check to see if the Inclinometer's Y-axis allign with the X-body-fixed
-        thzIncl = Deg2Rad((*p_inclinometer).GetAngleX()); // Check to see if the Inclinometer's X-axis allign with the Z-body-fixed
+        thxIncl = Deg2Rad((*p_inclinometer).GetAngleY());
+        thzIncl = Deg2Rad((*p_inclinometer).GetAngleX());
 
         // Calculating the attitude
         solRotMatBackward = BackwardSol::AlgebraicSolutionMatrix(thxIncl, thzIncl, thySun, thzSun);
