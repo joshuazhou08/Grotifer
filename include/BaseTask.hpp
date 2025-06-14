@@ -31,24 +31,3 @@ public:
 
     int GetTaskID();
 };
-
-/* Task circular linked list for easy scheduling */
-struct TaskNode
-{
-    std::unique_ptr<BaseTask> task;
-    TaskNode *next;
-
-    TaskNode(std::unique_ptr<BaseTask> t);
-};
-
-// Circular linked list
-class TaskList
-{
-private:
-    TaskNode *tail = nullptr;
-
-public:
-    ~TaskList();
-
-    void insert(std::unique_ptr<BaseTask> t);
-};
