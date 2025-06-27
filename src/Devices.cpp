@@ -1,5 +1,3 @@
-#pragma once
-
 #include <fstream>
 #include <iostream>
 #include "Devices.hpp"
@@ -58,11 +56,10 @@ bool Devices::initMaxonMotors()
     uint32_t serialNo[noOfOpenedPorts];
 
     // start error file log
-    eposErrFile.open("SystemData/Maxon EPOS Error Log.txt");
+    eposErrFile.open("logs/Maxon EPOS Error Log.txt");
     if (!eposErrFile.is_open())
     {
-    std:
-        cerr << "Failed to open EPOS Error Log file/n";
+        std::cerr << "Failed to open EPOS Error Log file/n";
         exit(EXIT_FAILURE);
     }
 
@@ -85,16 +82,19 @@ bool Devices::initMaxonMotors()
         {
             xMotorParams.keyHandle = keyHandle[i];
             xMotorParams.portName = &availPortNameList[i][0];
+            std::cout << "[Maxon Motor] X found" << std::endl;
         }
         if (serialNo[i] == yMotorParams.serialNo)
         {
             yMotorParams.keyHandle = keyHandle[i];
             yMotorParams.portName = &availPortNameList[i][0];
+            std::cout << "[Maxon Motor] Y found" << std::endl;
         }
         if (serialNo[i] == zMotorParams.serialNo)
         {
             zMotorParams.keyHandle = keyHandle[i];
             zMotorParams.portName = &availPortNameList[i][0];
+            std::cout << "[Maxon Motor] Z found" << std::endl;
         }
     }
 
@@ -102,6 +102,8 @@ bool Devices::initMaxonMotors()
     p_mmX = std::make_unique<MaxonMotor>(eposErrFile, xMotorParams, 'v');
     p_mmY = std::make_unique<MaxonMotor>(eposErrFile, yMotorParams, 'v');
     p_mmZ = std::make_unique<MaxonMotor>(eposErrFile, zMotorParams, 'v');
+
+    std::cout << "[Maxon Motor] Has been initialized!" << std::endl;
 
     return true;
 }
