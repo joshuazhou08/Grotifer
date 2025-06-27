@@ -1,6 +1,7 @@
 ﻿cmake_minimum_required(VERSION 3.14)
 project(GrotiferCMake LANGUAGES CXX C)
-
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #
 # 1) Tell CMake where your “MasterLibrary/” lives,
 #    i.e. where GrotiferMaster.hpp and GrotiferHardware/… are
@@ -53,6 +54,7 @@ target_include_directories(mainExe PUBLIC
 target_link_libraries(mainExe PUBLIC
     GrotiferHardwareStatic
     GrotiferSoftwareStatic
+    stdc++fs
 )
 
 # 5) If you have prebuilt libraries (either .so or .lib/.dll),
