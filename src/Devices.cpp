@@ -23,6 +23,7 @@ bool Devices::initLabJack()
         std::cerr << "Failed to open LabJack\n";
         return false;
     }
+    std::cout << "[LabJack] Successfully Opened" << std::endl;
     p_grotiferLJU6 = std::make_unique<LabJackU6>(hDevice, 0);
     return true;
 }
@@ -34,6 +35,7 @@ bool Devices::initInclinometer()
         std::cerr << "Failed to open the inclinometer. Make sure to call initLabjack first! \n";
         return false;
     }
+    std::cout << "[Inclinometer] Successfully Opened" << std::endl;
     p_inclinometer = std::make_unique<LabJackInclinometer>(*p_grotiferLJU6, 0, 1);
     return true;
 }
@@ -45,6 +47,7 @@ bool Devices::initSunSensor()
         std::cerr << "Failed to open Sun Sensor\n";
         return false;
     }
+    std::cout << "[Sun Sensor] Successfully Opened" << std::endl;
     p_sunSensor = std::make_unique<ModbusSunSensor>(modbusCtx);
     return true;
 }

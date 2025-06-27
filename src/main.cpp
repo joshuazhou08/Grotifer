@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 void setNonBlockingInput(bool enable)
 {
@@ -47,6 +49,9 @@ int main()
         return -1;
     }
 
+    // Sleep to let us read the device initialize logs
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
     AttitudeControl attitudeControl(
         devices.releaseMMX(),
         devices.releaseMMY(),
@@ -75,4 +80,5 @@ int main()
         taskTable[i]->Run();
         i = (i + 1) % NUM_TASKS;
     }
+    setNonBlockingInput(false); // Enable non-blocking input for smooth kill signal
 }
