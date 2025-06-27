@@ -25,7 +25,7 @@ inline maxon makeXMotor()
 {
     maxon m;
     m.nameMotor = "xMomMotor";
-    m.serialNo = 0x40008356;
+    m.serialNo = 0x37058243;
     m.K_P = 259266;
     m.K_I = 2450065;
     m.KFF_VEL = 5306;
@@ -43,7 +43,7 @@ inline maxon makeYMotor()
 {
     maxon m;
     m.nameMotor = "yMomMotor";
-    m.serialNo = 0x40008457;
+    m.serialNo = 0x37058261;
     m.K_P = 260961;
     m.K_I = 2466086;
     m.KFF_VEL = 4699;
@@ -61,7 +61,7 @@ inline maxon makeZMotor()
 {
     maxon m;
     m.nameMotor = "zMomMotor";
-    m.serialNo = 0x40008446;
+    m.serialNo = 0x37059351;
     m.K_P = 266273;
     m.K_I = 2516281;
     m.KFF_VEL = 6600;
