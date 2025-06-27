@@ -77,9 +77,6 @@ int AttitudeControl::Run()
         return 0;
     }
 
-    nextTaskTime += deltaTaskTime;
-    state = nextState;
-
     switch (state)
     {
     case INITIALIZING:
@@ -171,6 +168,42 @@ int AttitudeControl::Run()
         preTime = time;
     }
     }
+
+    // update
+    state = nextState;
+    std::string nextStateString;
+    if (nextState != state)
+    {
+        switch (nextState)
+        {
+        case DETERMINING_ATTITUDE:
+        {
+            nextStateString = "Determing Attitude";
+        }
+        case INITIALIZING_MOTION:
+        {
+            nextStateString = "Initializing Motion";
+        }
+        case DETUMBLING:
+        {
+            nextStateString = "Detumbling";
+        }
+        case FINDING_SUN:
+        {
+            nextStateString = "Finding Sun";
+        }
+        case HOLDING_POSITION:
+        {
+            nextStateString = "Holding Position";
+        }
+        case MOVING:
+        {
+            nextStateString = "Moving";
+        }
+        }
+        std::cout << "[Attitude Control Task] Switching to state: " << nextStateString << std::endl;
+    }
+    nextTaskTime += deltaTaskTime;
     return 0;
 }
 
