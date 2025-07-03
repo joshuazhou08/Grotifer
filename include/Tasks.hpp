@@ -67,3 +67,63 @@ private:
     double thetaProf, wProf, eProf;
     Vector3d angularVelocityErrorVec{{0.0, 0.0, 0.0}};
 };
+
+class TorpControl : public BaseTask
+{
+public:
+    TorpControl(char* taskname,
+                unsigned int taskID,
+                homingProfilePara &hpp,
+                PIControl &pi,
+                MaxonMotor &mm,
+                LJEncoder3Channels &ljEnc3C,
+                bool useMotEncFlag,
+                double gearRatio,
+                ofstream &torpControlDataFile,
+                ofstream &auditTrailDataFile);
+    ~TorpControl() override;
+    int Run() override;
+
+private:
+    //configs
+    TorpConfig config;
+    
+    //states
+    static constexpr int INITIALIZING_TORP = 0;
+    static constexpr int FINDING_HOME_INDEX = 1;
+    static constexpr int MOVING_TO_STARTING_POS = 2;
+    static constexpr int WAITING = 3;
+    static constexpr int SYNCHRONIZING = 4;
+    
+    void InitializeLogs();
+    std::ofstream auditTrailDataFile;
+    std::ofstream torpControlDataFile;
+
+protected:
+    // torp ang pos, prev ang pos, ang vel, motor pos, motor vel, pos error
+    double p_torpPos, p_torpPrePos, p_torpVel, p_motPos, p_motVel, p_posErr;
+
+    double p_gearRatio; // between motor and torp
+    double p_time, p_preTime, p_deltaT; // time value to calc integral
+    double p_tA, p_tB;// time to change homing vel profile
+
+    // homing vel, max acc, acc mag, offset from home pos, offset pos lim, 
+    double p_homingVel, p_maxAcc, p_accMag, p_offsetPos, p_offsetPosLim;
+    //limit of proximity to start pos, home pos of torp, home pos of motor, ref start pos, actual start pos, 
+    double p_startPosLim, p_homeTorpPos, p_homeMotPos, p_startPosRef, p_startPosAct;
+    // ref pos, ref acc profile, ref vel profile, desired velocity to maxon
+    double p_refPos, p_refAcc, p_refVel, p_desVel;
+
+    bool p_flipSign; //CCW (+) OR CW (-)
+    
+    bool p_useMotEncFlag; // main enc is motor's encoder
+
+    // done homing, index flag, ready for sync flag, pos ready within start region flag, enabled to run in sync state
+    bool p_doneHomingFlag, p_indexFlag, p_readySync, p_startPosRegionFlag, p_enableRunning;
+
+    int p_movingAverageFilterSpan;
+    //MovingAverage p_velMAFilter(p_movingAverageFilterSpan);
+
+    ofstream *p_torpControlDataFile;
+    unsigned int w = 25;
+};

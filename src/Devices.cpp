@@ -5,6 +5,11 @@
 #include <cstdlib>
 
 #define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
+#define RIGHT_STEPPER_1 "/dev/right_boom_stepper_1"
+#define RIGHT_STEPPER_2 "/dev/right_boom_stepper_2"
+#define LEFT_STEPPER_1 "/dev/left_boom_stepper_1"
+#define LEFT_STEPPER_2 "/dev/left_boom_stepper_2"
+
 // Constructor
 Devices::Devices()
 {
@@ -70,6 +75,8 @@ bool Devices::initMaxonMotors()
     xMotorParams = makeXMotor();
     yMotorParams = makeYMotor();
     zMotorParams = makeZMotor();
+    lMotorParams = makeLeftMotor();
+    rMotorParams = makeRightMotor();
 
     std::string *availPortNameList;
 
@@ -99,16 +106,67 @@ bool Devices::initMaxonMotors()
             zMotorParams.portName = &availPortNameList[i][0];
             std::cout << "[Maxon Motor] Z found" << std::endl;
         }
+        if (serialNo[i] == lMotorParams.serialNo)
+        {
+            lMotorParams.keyHandle = keyHandle[i];
+            lMotorParams.portName = &availPortNameList[i][0];
+            std::cout << "[Maxon Motor] Left found" << std::endl;
+        }
+        if (serialNo[i] == rMotorParams.serialNo)
+        {
+            rMotorParams.keyHandle = keyHandle[i];
+            rMotorParams.portName = &availPortNameList[i][0];
+            std::cout << "[Maxon Motor] Right found" << std::endl;
+        }
     }
 
     // initialize Maxon objects
     p_mmX = std::make_unique<MaxonMotor>(eposErrFile, xMotorParams, 'v');
     p_mmY = std::make_unique<MaxonMotor>(eposErrFile, yMotorParams, 'v');
     p_mmZ = std::make_unique<MaxonMotor>(eposErrFile, zMotorParams, 'v');
+    p_mmL = std::make_unique<MaxonMotor>(eposErrFile, lMotorParams, 'v');
+    p_mmR = std::make_unique<MaxonMotor>(eposErrFile, rMotorParams, 'v');
 
     std::cout << "[Maxon Motor] Has been initialized!" << std::endl;
 
     return true;
+}
+
+bool Devices::initUSDigiEnc()
+{
+    // ***************** FILL THIS IN ************************
+};
+
+bool Devices::initSteppers()
+{
+    
+    leftStepper2Para.sm = open(LEFT_STEPPER_2, O_RDWR | O_NOCTTY);
+    rightStepper1Para.sm = open(RIGHT_STEPPER_1, O_RDWR | O_NOCTTY);
+    rightStepper2Para.sm = open(RIGHT_STEPPER_2, O_RDWR | O_NOCTTY);
+
+    if (leftStepper1Para.sm == -1)
+    {
+        perror(LEFT_STEPPER_1);
+        return -1;
+    }
+
+    if (leftStepper2Para.sm == -1)
+    {
+        perror(LEFT_STEPPER_2);
+        return -1;
+    }
+
+    if (rightStepper1Para.sm == -1)
+    {
+        perror(RIGHT_STEPPER_1);
+        return -1;
+    }
+
+    if (rightStepper2Para.sm == -1)
+    {
+        perror(RIGHT_STEPPER_2);
+        return -1;
+    }
 }
 
 // Ownership transfer functions
@@ -138,6 +196,26 @@ std::unique_ptr<MaxonMotor> Devices::releaseMMZ()
     }
     return std::move(p_mmZ);
 }
+
+std::unique_ptr<MaxonMotor> Devices::releaseMML()
+{
+    if (!p_mmL)
+    {
+        std::cerr << "Left Motor has not been initialized!" << std::endl;
+    }
+    return std::move(p_mmL);
+}
+
+std::unique_ptr<MaxonMotor> Devices::releaseMMR()
+{
+    if (!p_mmR)
+    {
+        std::cerr << "Right Motor has not been initialized!" << std::endl;
+    }
+    return std::move(p_mmR);
+}
+
+
 
 std::unique_ptr<LabJackU6> Devices::releaseLabJackU6()
 {
