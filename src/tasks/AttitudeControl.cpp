@@ -3,7 +3,9 @@
 #include <iostream>
 #include <stdexcept>
 #include <filesystem> // optional, for auto-creating log directory
+#include <cmath>
 
+using namespace std;
 // Forward delcaration for a filter
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 
@@ -81,7 +83,23 @@ int AttitudeControl::Run()
     {
     case INITIALIZING:
     {
-        nextState = DETERMINING_ATTITUDE;
+        if (config.initialKick)
+        {
+            iniMotionDone = false;
+            iniKickEndTime = GetTimeNow() + config.iniKickDuration;
+            nextState = INITIALIZING_MOTION;
+        }
+        else
+        {
+            iniMotionDone = true;
+            nextState = DETERMINING_ATTITUDE;
+        }
+
+        break;
+    }
+
+    case DETUMBLING:
+    {
         break;
     }
 
@@ -166,6 +184,52 @@ int AttitudeControl::Run()
         // Update
         preAngularVelocityVec = angularVelocityVec;
         preTime = time;
+
+        if (!iniMotionDone)
+        {
+            nextState = INITIALIZING_MOTION;
+        }
+        else
+        {
+            nextState = DETERMINING_ATTITUDE;
+        }
+    }
+
+    case INITIALIZING_MOTION:
+    {
+        double time = GetTimeNow();
+        double deltaT = time - preTimeIni;
+
+        double torqueCmdX, torqueCmdY, torqueCmdZ;
+        double velCmdX, velCmdY, velCmdZ;
+
+        if (time < iniKickEndTime)
+        {
+            if (moveXMomentumWheelWithTorque(config.iniTorqueVec(0), deltaT, &torqueCmdX, &velCmdX))
+                cout << "Saturate X Momentum Wheel" << endl;
+            if (moveYMomentumWheelWithTorque(config.iniTorqueVec(1), deltaT, &torqueCmdY, &velCmdY))
+                cout << "Saturate Y Momentum Wheel" << endl;
+            if (moveZMomentumWheelWithTorque(config.iniTorqueVec(2), deltaT, &torqueCmdX, &velCmdZ))
+                cout << "Saturate Z Momentum Wheel" << endl;
+        }
+
+        // Get the data
+        double momtWheelXVel = (*p_mmX).GetVelocityIs();
+        double momtWheelYVel = (*p_mmY).GetVelocityIs();
+        double momtWheelZVel = (*p_mmZ).GetVelocityIs();
+        // Log the data
+        momentumWheelsLog << left << setw(w) << GetTimeNow() << left << setw(w) << torqueCmdX << left << setw(w) << velCmdX << left << setw(w) << momtWheelXVel
+                          << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << momtWheelYVel
+                          << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << momtWheelZVel << endl;
+
+        if (time + preTimeIni >= iniKickEndTime * 2)
+        {
+            iniMotionDone = true;
+        }
+
+        preTimeIni = time;
+        nextState = DETERMINING_ATTITUDE;
+        break;
     }
     }
 
@@ -178,7 +242,7 @@ int AttitudeControl::Run()
         {
         case DETERMINING_ATTITUDE:
         {
-            nextStateString = "Determing Attitude";
+            nextStateString = "Determining Attitude";
         }
         case INITIALIZING_MOTION:
         {
@@ -205,6 +269,110 @@ int AttitudeControl::Run()
     }
     nextTaskTime += deltaTaskTime;
     return 0;
+}
+
+bool AttitudeControl::moveXMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal)
+{
+    bool saturateXMomtWheelFlag = false;
+    double accCmd = 0; // Command value for acceleration
+    int velCmd = 0;
+
+    double torqueCmd = torque;
+
+    accCmd = torqueCmd / config.momOfInertiaX;
+    velCmd = xMomentumWheelVel + (accCmd * deltaT) * (30 / M_PI); // conversion factor
+
+    if (accCmd >= maxAccCmdX)
+        accCmd = maxAccCmdX;
+    else if (accCmd <= -maxAccCmdX)
+        accCmd = -maxAccCmdX;
+
+    // Check for saturation
+    if (velCmd > config.maxVelX)
+    {
+        saturateXMomtWheelFlag = true;
+        velCmd = config.maxVelX;
+    }
+    else if (velCmd < -config.maxVelX)
+    {
+        saturateXMomtWheelFlag = true;
+        velCmd = -config.maxVelX;
+    }
+
+    (*p_mmX).RunWithVelocity(velCmd);
+    *torqueCmdVal = torqueCmd;
+    *velCmdVal = velCmd;
+
+    xMomentumWheelVel = velCmd;
+    return saturateXMomtWheelFlag;
+}
+
+bool AttitudeControl::moveYMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal)
+{
+    bool saturateYMomtWheelFlag = false;
+    double accCmd = 0; // Command value for acceleration
+    int velCmd = 0;
+    double torqueCmd = -torque; // y must be flipped
+    accCmd = torqueCmd / config.momOfInertiaY;
+    velCmd = yMomentumWheelVel + (accCmd * deltaT) * (30 / M_PI); // conversion factor
+
+    if (accCmd >= maxAccCmdY)
+        accCmd = maxAccCmdY;
+    else if (accCmd <= -maxAccCmdY)
+        accCmd = -maxAccCmdY;
+
+    // Check for saturation
+    if (velCmd > config.maxVelY)
+    {
+        saturateYMomtWheelFlag = true;
+        velCmd = config.maxVelY;
+    }
+    else if (velCmd < -config.maxVelY)
+    {
+        saturateYMomtWheelFlag = true;
+        velCmd = -config.maxVelY;
+    }
+    (*p_mmY).RunWithVelocity(velCmd);
+    *torqueCmdVal = torqueCmd;
+    *velCmdVal = velCmd;
+
+    yMomentumWheelVel = velCmd;
+    return saturateYMomtWheelFlag;
+}
+
+bool AttitudeControl::moveZMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal)
+{
+    bool saturateZMomtWheelFlag = false;
+    double accCmd = 0; // Command value for acceleration
+    int velCmd = 0;
+    double torqueCmd = -torque; // Z is flipped
+
+    accCmd = torqueCmd / config.momOfInertiaZ;
+    velCmd = zMomentumWheelVel + (accCmd * deltaT) * (30 / M_PI); // conversion factor
+
+    if (accCmd >= maxAccCmdZ)
+        accCmd = maxAccCmdZ;
+    else if (accCmd <= -maxAccCmdZ)
+        accCmd = -maxAccCmdZ;
+
+    // Check for saturation
+    if (velCmd > config.maxVelZ)
+    {
+        saturateZMomtWheelFlag = true;
+        velCmd = config.maxVelZ;
+    }
+    else if (velCmd < -config.maxVelZ)
+    {
+        saturateZMomtWheelFlag = true;
+        velCmd = -config.maxVelZ;
+    }
+
+    (*p_mmZ).RunWithVelocity(velCmd);
+    *torqueCmdVal = torqueCmd;
+    *velCmdVal = velCmd;
+
+    zMomentumWheelVel = velCmd;
+    return saturateZMomtWheelFlag;
 }
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)

@@ -6,19 +6,22 @@ struct AttitudeConfig
     static inline constexpr double deltaTaskTime = 75e-3;
 
     // --- Momentum Wheels Configurations --- //
-    // X-momentum wheel
     double momOfInertiaX = 3.6383e-5; // Moment of inertia for X, [kg.m^2]
-    long int maxVelX = 4600;          // Maximum speed for X-momentum wheel, [rpm]
+    int16_t maxVelX = 7500;           // Maximum speed for X-momentum wheel, [rpm]
 
-    // Y-momentum wheel
     double momOfInertiaY = 3.6383e-5; // Moment of inertia for Y, [kg.m^2]
-    long int maxVelY = 4600;          // Maximum speed for Y-momentum wheel, [rpm]
+    int16_t maxVelY = 7500;           // Maximum speed for Y-momentum wheel, [rpm]
 
-    // Z-momentum wheel
     double momOfInertiaZ = 3.6383e-5; // Moment of inertia for Z, [kg.m^2]
-    long int maxVelZ = 4600;          // Maximum speed for Z-momentum wheel, [rpm]
+    int16_t maxVelZ = 7500;           // Maximum speed for Z-momentum wheel, [rpm]
 
     double fc = 4.0; // Cut off frequency for angular velocity filtering
+
+    // Initial Kick Paramters
+    double iniKickDuration = 250.0e-3;
+    Vector3d iniTorqueVec{{0.0, 0.0, 0.1}};
+    // --- Flags For Configuring Behavior --- //
+    bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
 };
 // --- Maxon motor factory functions ---
 inline maxon makeXMotor()

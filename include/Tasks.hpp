@@ -66,4 +66,42 @@ private:
     Vector3d refAngularVelocityVec{{0.0, 0.0, 0.0}};
     double thetaProf, wProf, eProf;
     Vector3d angularVelocityErrorVec{{0.0, 0.0, 0.0}};
+
+    // for the initial kick
+    double iniKickEndTime;
+    double preTimeIni; // Used to track change in time
+    bool iniMotionDone = false;
+
+    // for motors
+    int xMomentumWheelVel = 0;
+    int yMomentumWheelVel = 0;
+    int zMomentumWheelVel = 0;
+
+    /**
+     * @brief Moves the X momentum wheel with a given torque
+     * @param torque The torque to apply
+     * @param deltaT Time over which to apply the torque
+     * @param torqueCmdVal Used to extract the final torque commmand
+     * @param velCmdVal Used to extract the final velocity command
+     * @returns True if the X momentum wheel is saturated
+     */
+    bool moveXMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
+    /**
+     * @brief Moves the Y momentum wheel with a given torque
+     * @param torque The torque to apply
+     * @param deltaT Time over which to apply the torque
+     * @param torqueCmdVal Used to extract the final torque commmand
+     * @param velCmdVal Used to extract the final velocity command
+     * @returns True if the X momentum wheel is saturated
+     */
+    bool moveYMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
+    /**
+     * @brief Moves the Z momentum wheel with a given torque
+     * @param torque The torque to apply
+     * @param deltaT Time over which to apply the torque
+     * @param torqueCmdVal Used to extract the final torque commmand
+     * @param velCmdVal Used to extract the final velocity command
+     * @returns True if the X momentum wheel is saturated
+     */
+    bool moveZMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
 };
