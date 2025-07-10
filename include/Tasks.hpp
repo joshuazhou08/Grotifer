@@ -72,10 +72,20 @@ private:
     double preTimeIni; // Used to track change in time
     bool iniMotionDone = false;
 
+    // for deteumbling
+    double preTimeDetumbling;
+
     // for motors
     int xMomentumWheelVel = 0;
     int yMomentumWheelVel = 0;
     int zMomentumWheelVel = 0;
+
+    /**
+     * @brief Applies a torque using the momentum wheels
+     * @param torque The torque vector to apply
+     * @param deltaT The change in time from previous state
+     */
+    void applyTorque(Vector3d torque, double deltaT);
 
     /**
      * @brief Moves the X momentum wheel with a given torque

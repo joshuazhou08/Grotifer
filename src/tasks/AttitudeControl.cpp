@@ -98,11 +98,6 @@ int AttitudeControl::Run()
         break;
     }
 
-    case DETUMBLING:
-    {
-        break;
-    }
-
     case DETERMINING_ATTITUDE:
     {
         // Read the Sun Sensor
@@ -199,29 +194,10 @@ int AttitudeControl::Run()
     {
         double time = GetTimeNow();
         double deltaT = time - preTimeIni;
-
-        double torqueCmdX, torqueCmdY, torqueCmdZ;
-        double velCmdX, velCmdY, velCmdZ;
-
         if (time < iniKickEndTime)
         {
-            if (moveXMomentumWheelWithTorque(config.iniTorqueVec(0), deltaT, &torqueCmdX, &velCmdX))
-                cout << "Saturate X Momentum Wheel" << endl;
-            if (moveYMomentumWheelWithTorque(config.iniTorqueVec(1), deltaT, &torqueCmdY, &velCmdY))
-                cout << "Saturate Y Momentum Wheel" << endl;
-            if (moveZMomentumWheelWithTorque(config.iniTorqueVec(2), deltaT, &torqueCmdX, &velCmdZ))
-                cout << "Saturate Z Momentum Wheel" << endl;
+            applyTorque(config.iniTorqueVec, deltaT);
         }
-
-        // Get the data
-        double momtWheelXVel = (*p_mmX).GetVelocityIs();
-        double momtWheelYVel = (*p_mmY).GetVelocityIs();
-        double momtWheelZVel = (*p_mmZ).GetVelocityIs();
-        // Log the data
-        momentumWheelsLog << left << setw(w) << GetTimeNow() << left << setw(w) << torqueCmdX << left << setw(w) << velCmdX << left << setw(w) << momtWheelXVel
-                          << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << momtWheelYVel
-                          << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << momtWheelZVel << endl;
-
         if (time + preTimeIni >= iniKickEndTime * 2)
         {
             iniMotionDone = true;
@@ -230,6 +206,14 @@ int AttitudeControl::Run()
         preTimeIni = time;
         nextState = DETERMINING_ATTITUDE;
         break;
+    }
+
+    case DETUMBLING:
+    {
+        double time = GetTimeNow();
+        double deltaT = time - preTimeDetumbling;
+
+        preTimeDetumbling = time;
     }
     }
 
@@ -373,6 +357,28 @@ bool AttitudeControl::moveZMomentumWheelWithTorque(double torque, double deltaT,
 
     zMomentumWheelVel = velCmd;
     return saturateZMomtWheelFlag;
+}
+
+void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
+{
+    double torqueCmdX, torqueCmdY, torqueCmdZ;
+    double velCmdX, velCmdY, velCmdZ;
+
+    if (moveXMomentumWheelWithTorque(torque(0), deltaT, &torqueCmdX, &velCmdX))
+        cout << "Saturate X Momentum Wheel" << endl;
+    if (moveYMomentumWheelWithTorque(torque(1), deltaT, &torqueCmdY, &velCmdY))
+        cout << "Saturate Y Momentum Wheel" << endl;
+    if (moveZMomentumWheelWithTorque(torque(2), deltaT, &torqueCmdX, &velCmdZ))
+        cout << "Saturate Z Momentum Wheel" << endl;
+
+    // Get the data
+    xMomentumWheelVel = (*p_mmX).GetVelocityIs();
+    yMomentumWheelVel = (*p_mmY).GetVelocityIs();
+    zMomentumWheelVel = (*p_mmZ).GetVelocityIs();
+    // Log the data
+    momentumWheelsLog << left << setw(w) << GetTimeNow() << left << setw(w) << torqueCmdX << left << setw(w) << velCmdX << left << setw(w) << xMomentumWheelVel
+                      << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel
+                      << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << zMomentumWheelVel << endl;
 }
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
