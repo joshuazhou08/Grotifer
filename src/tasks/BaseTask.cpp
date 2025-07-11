@@ -16,6 +16,8 @@ BaseTask::BaseTask(const char *name, int taskID)
 {
     std::filesystem::create_directories("logs");
     auditTrailLog.open("logs/trail_record.txt", std::ios::out | std::ios::trunc);
+    auditTrailLog << left << setw(w) << "Start" << left << setw(w) << "End" << left << setw(w) << "Duration[ms]" << left << setw(w) << "TaskName"
+                  << left << setw(w) << "TaskID" << left << setw(w) << "CurrState" << left << setw(w) << "NextState" << endl;
 }
 
 BaseTask::~BaseTask()
