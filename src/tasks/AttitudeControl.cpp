@@ -23,6 +23,25 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
 {
     InitializeLogs();
 
+    PIControlPara xParameters{/*kp=*/config.xK_p,
+                              /*ki=*/config.xK_i,
+                              /*hLim=*/config.xhLim,
+                              /*lLim=*/config.xlLim};
+
+    PIControlPara yParameters{/*kp=*/config.yK_p,
+                              /*ki=*/config.yK_i,
+                              /*hLim=*/config.yhLim,
+                              /*lLim=*/config.ylLim};
+
+    PIControlPara zParameters{/*kp=*/config.zK_p,
+                              /*ki=*/config.zK_i,
+                              /*hLim=*/config.zhLim,
+                              /*lLim=*/config.zlLim};
+
+    PIControl xPI(xParameters);
+    PIControl yPI(yParameters);
+    PIControl zPI(zParameters);
+
     if (!attitudeLog || !sensorLog || !angularVelLog || !momentumWheelsLog)
     {
         throw std::runtime_error("Failed to open one or more log files in AttitudeControl.");
@@ -87,11 +106,14 @@ int AttitudeControl::Run()
         {
             iniMotionDone = false;
             iniKickEndTime = GetTimeNow() + config.iniKickDuration;
+            preTimeIni = GetTimeNow();
             nextState = INITIALIZING_MOTION;
         }
         else
         {
             iniMotionDone = true;
+            detumblingEndTime = GetTimeNow() + config.detumblingMaxDuration;
+            preTimeDetumbling = GetTimeNow();
             nextState = DETERMINING_ATTITUDE;
         }
 
@@ -179,15 +201,16 @@ int AttitudeControl::Run()
         // Update
         preAngularVelocityVec = angularVelocityVec;
         preTime = time;
-
         if (!iniMotionDone)
         {
             nextState = INITIALIZING_MOTION;
         }
-        else
+        if (iniMotionDone)
         {
-            nextState = DETERMINING_ATTITUDE;
+            nextState = DETUMBLING;
         }
+
+        break;
     }
 
     case INITIALIZING_MOTION:
@@ -201,6 +224,9 @@ int AttitudeControl::Run()
         if (time + preTimeIni >= iniKickEndTime * 2)
         {
             iniMotionDone = true;
+            cout << "[Attitude Control] Initial Kick Done" << endl;
+            detumblingEndTime = GetTimeNow() + config.detumblingMaxDuration;
+            preTimeDetumbling = GetTimeNow();
         }
 
         preTimeIni = time;
@@ -213,7 +239,25 @@ int AttitudeControl::Run()
         double time = GetTimeNow();
         double deltaT = time - preTimeDetumbling;
 
+        Vector3d torque;
+        torque(0) = config.xK_p * angularVelocityVec(0);
+        torque(1) = -config.yK_p * angularVelocityVec(1);
+        torque(2) = -config.zK_p * angularVelocityVec(2);
+
+        applyTorque(torque, deltaT);
+
+        double max_component = angularVelocityVec.cwiseAbs().maxCoeff();
+
+        if (time >= detumblingEndTime || max_component < 4.5e-3)
+        {
+            cout << detumblingEndTime << endl;
+            detumblingDone = true;
+            cout << "[Attitude Control] Detumbling Done" << endl;
+        }
+
+        nextState = DETERMINING_ATTITUDE;
         preTimeDetumbling = time;
+        break;
     }
     }
 

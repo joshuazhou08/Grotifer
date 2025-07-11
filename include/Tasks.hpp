@@ -73,8 +73,9 @@ private:
     bool iniMotionDone = false;
 
     // for deteumbling
+    double detumblingEndTime;
     double preTimeDetumbling;
-
+    bool detumblingDone = false;
     // for motors
     int xMomentumWheelVel = 0;
     int yMomentumWheelVel = 0;

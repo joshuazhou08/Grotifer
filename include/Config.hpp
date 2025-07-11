@@ -20,8 +20,28 @@ struct AttitudeConfig
     // Initial Kick Paramters
     double iniKickDuration = 250.0e-3;
     Vector3d iniTorqueVec{{0.0, 0.0, 0.1}};
+
+    // Detumbling Parameters
+    double detumblingMaxDuration = 10;
+
     // --- Flags For Configuring Behavior --- //
     bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
+
+    // --- Gain constants --- //
+    double xK_p = 0.175;
+    double xK_i = 1.5e-3 * xK_p;
+    double xhLim = 0.5;
+    double xlLim = -0.5;
+
+    double yK_p = 0.2;
+    double yK_i = 1.5e-3 * yK_p;
+    double yhLim = 1.0;
+    double ylLim = -1.0;
+
+    double zK_p = 0.2;
+    double zK_i = 1.5e-3 * zK_p;
+    double zhLim = 0.5;
+    double zlLim = -0.5;
 };
 // --- Maxon motor factory functions ---
 inline maxon makeXMotor()
