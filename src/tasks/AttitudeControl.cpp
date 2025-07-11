@@ -98,6 +98,7 @@ int AttitudeControl::Run()
         return 0;
     }
     // update
+    timeStart = GetTimeNow();
     state = nextState;
     stateName = nextStateName;
 
@@ -271,6 +272,8 @@ int AttitudeControl::Run()
     }
     }
     nextTaskTime += deltaTaskTime;
+    timeEnd = GetTimeNow();
+
     AuditDataTrail();
     return 0;
 }
