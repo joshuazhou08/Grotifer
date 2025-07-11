@@ -1,7 +1,8 @@
 #pragma once
 #include <iostream>
 #include <memory>
-
+#include <filesystem>
+#include <fstream>
 // -----------------------
 // BaseTask class
 // -----------------------
@@ -15,13 +16,21 @@ protected:
     double deltaTaskTime; // Task period
     double nextTaskTime;  // Time for next execution
 
+    double timeStart;
+    double timeEnd;
+
     // State variables for simple state machines
     int state;
+    std::string stateName;
     int nextState;
+    std::string nextStateName;
     int numScans;
 
     // log file line width
     unsigned int w = 25;
+
+    void AuditDataTrail();
+    std::ofstream auditTrailLog;
 
 public:
     BaseTask(const char *name, int taskID = 0);

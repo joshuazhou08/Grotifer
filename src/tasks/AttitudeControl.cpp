@@ -2,7 +2,7 @@
 #include "Config.hpp"
 #include <iostream>
 #include <stdexcept>
-#include <filesystem> // optional, for auto-creating log directory
+#include <filesystem>
 #include <cmath>
 
 using namespace std;
@@ -69,10 +69,10 @@ void AttitudeControl::InitializeLogs()
 {
     std::filesystem::create_directories("logs");
 
-    attitudeLog.open("logs/attitude.txt", std::ios::out | std::ios::app);
-    sensorLog.open("logs/sensors.txt", std::ios::out | std::ios::app);
-    angularVelLog.open("logs/angular_velocity.txt", std::ios::out | std::ios::app);
-    momentumWheelsLog.open("logs/momentum_wheels.txt", std::ios::out | std::ios::app);
+    attitudeLog.open("logs/attitude.txt", std::ios::out | std::ios::trunc);
+    sensorLog.open("logs/sensors.txt", std::ios::out | std::ios::trunc);
+    angularVelLog.open("logs/angular_velocity.txt", std::ios::out | std::ios::trunc);
+    momentumWheelsLog.open("logs/momentum_wheels.txt", std::ios::out | std::ios::trunc);
 
     attitudeLog << left << setw(w) << "Time (s)" << left << setw(w) << "Xb_x" << left << setw(w) << "Xb_y" << left << setw(w) << "Xb_z"
                 << left << setw(w) << "Yb_x" << left << setw(w) << "Yb_y" << left << setw(w) << "Yb_z"
@@ -97,6 +97,9 @@ int AttitudeControl::Run()
     {
         return 0;
     }
+    // update
+    state = nextState;
+    stateName = nextStateName;
 
     switch (state)
     {
@@ -108,6 +111,7 @@ int AttitudeControl::Run()
             iniKickEndTime = GetTimeNow() + config.iniKickDuration;
             preTimeIni = GetTimeNow();
             nextState = INITIALIZING_MOTION;
+            nextStateName = "Initializing Motion";
         }
         else
         {
@@ -115,6 +119,7 @@ int AttitudeControl::Run()
             detumblingEndTime = GetTimeNow() + config.detumblingMaxDuration;
             preTimeDetumbling = GetTimeNow();
             nextState = DETERMINING_ATTITUDE;
+            nextStateName = "Determining Attitude";
         }
 
         break;
@@ -204,10 +209,12 @@ int AttitudeControl::Run()
         if (!iniMotionDone)
         {
             nextState = INITIALIZING_MOTION;
+            nextStateName = "Initializing Motion";
         }
         if (iniMotionDone)
         {
             nextState = DETUMBLING;
+            nextStateName = "Detumbling";
         }
 
         break;
@@ -231,6 +238,8 @@ int AttitudeControl::Run()
 
         preTimeIni = time;
         nextState = DETERMINING_ATTITUDE;
+        nextStateName = "Determining Attitude";
+
         break;
     }
 
@@ -250,52 +259,19 @@ int AttitudeControl::Run()
 
         if (time >= detumblingEndTime || max_component < 4.5e-3)
         {
-            cout << detumblingEndTime << endl;
             detumblingDone = true;
             cout << "[Attitude Control] Detumbling Done" << endl;
         }
 
         nextState = DETERMINING_ATTITUDE;
+        nextStateName = "Determining Attitude";
+
         preTimeDetumbling = time;
         break;
     }
     }
-
-    // update
-    state = nextState;
-    std::string nextStateString;
-    if (nextState != state)
-    {
-        switch (nextState)
-        {
-        case DETERMINING_ATTITUDE:
-        {
-            nextStateString = "Determining Attitude";
-        }
-        case INITIALIZING_MOTION:
-        {
-            nextStateString = "Initializing Motion";
-        }
-        case DETUMBLING:
-        {
-            nextStateString = "Detumbling";
-        }
-        case FINDING_SUN:
-        {
-            nextStateString = "Finding Sun";
-        }
-        case HOLDING_POSITION:
-        {
-            nextStateString = "Holding Position";
-        }
-        case MOVING:
-        {
-            nextStateString = "Moving";
-        }
-        }
-        std::cout << "[Attitude Control Task] Switching to state: " << nextStateString << std::endl;
-    }
     nextTaskTime += deltaTaskTime;
+    AuditDataTrail();
     return 0;
 }
 
