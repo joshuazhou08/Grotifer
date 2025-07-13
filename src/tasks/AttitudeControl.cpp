@@ -175,9 +175,9 @@ int AttitudeControl::Run()
         }
         else
         {
-            Matrix3d curRotMat = solRotMatBackward * iniRotMat.transpose(); // TODO: look into why the iniRotMat is needed
-            AngularVel::time_interval = time - preTime;                     // Calculate the actual delta_t between two consecutive calls
-            angularVelocityVec = AngularVel::GetAngularVelVec(prevRotMat, curRotMat);
+            Matrix3d curRotMat = solRotMatBackward;
+            double deltaT = time - preTime;                                                                           // Calculate the actual delta_t between two consecutive calls
+            angularVelocityVec = curRotMat.transpose() * AngularVel::GetAngularVelVec(prevRotMat, curRotMat, deltaT); // convert angular velocity to body fixed frame
             rotAngle = AngularVel::RotAngleAboutRotAxis(curRotMat);
             prevRotMat = curRotMat;
         }
@@ -250,17 +250,20 @@ int AttitudeControl::Run()
         double deltaT = time - preTimeDetumbling;
 
         Vector3d torque;
-        torque(0) = config.xK_p * angularVelocityVec(0);
+        torque(0) = -config.xK_p * angularVelocityVec(0);
         torque(1) = -config.yK_p * angularVelocityVec(1);
         torque(2) = -config.zK_p * angularVelocityVec(2);
 
         applyTorque(torque, deltaT);
 
         double max_component = angularVelocityVec.cwiseAbs().maxCoeff();
+        cout << "max component: " << max_component << endl;
 
         if (time >= detumblingEndTime || max_component < 4.5e-3)
         {
             detumblingDone = true;
+            cout << "max component: " << max_component << endl;
+
             cout << "[Attitude Control] Detumbling Done" << endl;
         }
 
