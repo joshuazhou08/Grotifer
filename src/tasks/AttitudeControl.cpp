@@ -257,12 +257,10 @@ int AttitudeControl::Run()
         applyTorque(torque, deltaT);
 
         double max_component = angularVelocityVec.cwiseAbs().maxCoeff();
-        cout << "max component: " << max_component << endl;
 
-        if (time >= detumblingEndTime || max_component < 4.5e-3)
+        if (time >= detumblingEndTime && max_component < 4.5e-3)
         {
             detumblingDone = true;
-            cout << "max component: " << max_component << endl;
 
             cout << "[Attitude Control] Detumbling Done" << endl;
         }
