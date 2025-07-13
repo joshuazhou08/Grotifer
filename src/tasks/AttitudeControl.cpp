@@ -6,6 +6,7 @@
 #include <cmath>
 
 using namespace std;
+using namespace Eigen;
 // Forward delcaration for a filter
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 
@@ -21,20 +22,42 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
       p_sunSensor(std::move(sunSensor)),
       p_inclinometer(std::move(inclinometer)),
       xVelocityLoop(
-          /*kp=*/config.xVelocityK_p,
-          /*ki=*/config.xVelocityK_i,
-          /*hLim=*/config.xVelocityhLim,
-          /*lLim=*/config.xVelocitylLim),
+          config.xVelocityK_p,
+          config.xVelocityK_i,
+          config.xVelocityhLim,
+          config.xVelocitylLim,
+          config.xVelocityK_d),
       yVelocityLoop(
           config.yVelocityK_p,
           config.yVelocityK_i,
           config.yVelocityhLim,
-          config.yVelocitylLim),
+          config.yVelocitylLim,
+          config.yVelocityK_d),
       zVelocityLoop(
           config.zVelocityK_p,
           config.zVelocityK_i,
           config.zVelocityhLim,
-          config.zVelocitylLim)
+          config.zVelocitylLim,
+          config.zVelocityK_d),
+      xPositionLoop(
+          config.xPositionK_p,
+          config.xPositionK_i,
+          config.xPositionhLim,
+          config.xPositionlLim,
+          config.xPositionK_d),
+      yPositionLoop(
+          config.yPositionK_p,
+          config.yPositionK_i,
+          config.yPositionhLim,
+          config.yPositionlLim,
+          config.yPositionK_d),
+      zPositionLoop(
+          config.zPositionK_p,
+          config.zPositionK_i,
+          config.zPositionhLim,
+          config.zPositionlLim,
+          config.zPositionK_d)
+
 {
     InitializeLogs();
 
@@ -208,10 +231,21 @@ int AttitudeControl::Run()
             nextState = INITIALIZING_MOTION;
             nextStateName = "Initializing Motion";
         }
-        if (iniMotionDone)
+        else if (!detumblingDone)
         {
             nextState = DETUMBLING;
             nextStateName = "Detumbling";
+        }
+
+        else
+        {
+            nextState = HOLDING_POSITION;
+            if (!holdingPositionSet)
+            {
+                holdingPosition = solRotMatBackward;
+                holdingPositionSet = true;
+            }
+            nextStateName = "Holding Position";
         }
 
         break;
@@ -265,6 +299,31 @@ int AttitudeControl::Run()
         nextStateName = "Determining Attitude";
 
         preTimeDetumbling = time;
+        break;
+    }
+
+    case HOLDING_POSITION:
+    {
+        double time = GetTimeNow();
+        double deltaT = time - preTimeHoldingPos;
+
+        // Calculating the pi signal
+        Matrix3d curRotMat = solRotMatBackward;
+        Matrix3d rotation = AngularVel::RotMatBodyToBody(holdingPosition, curRotMat); // Rotation from where you are to where you want to hold
+        AngleAxisd angleAxis{rotation};
+        Vector3d rotAxis = angleAxis.axis();
+        double rotAngle = angleAxis.angle();
+        Vector3d signal = curRotMat.transpose() * (rotAxis * rotAngle);
+
+        Vector3d torque;
+        torque(0) = xPositionLoop.PIDCalculation(0, signal(0));
+        torque(1) = yPositionLoop.PIDCalculation(0, signal(1));
+        torque(2) = zPositionLoop.PIDCalculation(0, signal(2));
+
+        applyTorque(torque, deltaT);
+
+        nextState = DETERMINING_ATTITUDE;
+        nextStateName = "Determining Attitude";
         break;
     }
     }

@@ -49,8 +49,8 @@ PIControl::PIControl(PIControlPara &pic)
     p_lLim = pic.lLim;
 };
 
-PIControl::PIControl(double kp, double ki, double hLim, double lLim)
-    : p_kp(kp), p_ki(ki), p_hLim(hLim), p_lLim(lLim) {
+PIControl::PIControl(double kp, double ki, double hLim, double lLim, double kd)
+    : p_kp(kp), p_ki(ki), p_hLim(hLim), p_lLim(lLim), p_kd(kd) {
       };
 
 PIControl::~PIControl() {};
@@ -61,7 +61,7 @@ double PIControl::GetKi() { return p_ki; }       // Get k_i
 double PIControl::GetError() { return p_error; } // Get the error from the PI controller
 
 // Main Controller function
-double PIControl::PICalculation(double setpoint, double actVal)
+double PIControl::PIDCalculation(double setpoint, double actVal)
 {
     p_setpoint = setpoint;
     p_actVal = actVal;
@@ -90,9 +90,26 @@ double PIControl::PICalculation(double setpoint, double actVal)
     else
         p_I_part += p_ki * p_error * p_deltaT;
 
-    // Calculate the control signal
-    p_uPI = (p_P_part + p_I_part);
+    // D part
+    if (p_deltaT > 0.0)
+    {
+        const double derivative = (p_error - p_prevError) / p_deltaT;
+        p_D_part = p_kd * derivative;
+    }
+    else
+    {
+        p_D_part = 0.0;
+    }
 
-    // Return the control signal
-    return p_uPI;
+    double u = p_P_part + p_I_part + p_D_part;
+    if (u > p_hLim)
+        u = p_hLim;
+    else if (u < p_lLim)
+        u = p_lLim;
+
+    // 7) Save for next time
+    p_prevError = p_error;
+    p_uPID = u;
+
+    return p_uPID;
 }

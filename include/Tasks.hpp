@@ -72,10 +72,16 @@ private:
     double preTimeIni; // Used to track change in time
     bool iniMotionDone = false;
 
-    // for deteumbling
+    // for detumbling
     double detumblingEndTime;
     double preTimeDetumbling;
     bool detumblingDone = false;
+
+    // for holding position
+    bool holdingPositionSet = false;
+    double preTimeHoldingPos;
+    Matrix3d holdingPosition{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+
     // for motors
     int xMomentumWheelVel = 0;
     int yMomentumWheelVel = 0;
@@ -84,6 +90,9 @@ private:
     // PI control loops (position and velocity)
     PIControl xVelocityLoop,
         yVelocityLoop, zVelocityLoop;
+
+    PIControl xPositionLoop,
+        yPositionLoop, zPositionLoop;
 
     /**
      * @brief Applies a torque using the momentum wheels

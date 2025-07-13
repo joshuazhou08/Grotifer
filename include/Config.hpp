@@ -27,21 +27,44 @@ struct AttitudeConfig
     // --- Flags For Configuring Behavior --- //
     bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
 
-    // --- Gain constants --- //
+    // --- Angular velocity loop gain constants --- //
     double xVelocityK_p = 0.175;
     double xVelocityK_i = 1.5e-3 * xVelocityK_p;
     double xVelocityhLim = 0.5;
     double xVelocitylLim = -0.5;
+    double xVelocityK_d = 0;
 
     double yVelocityK_p = 0.2;
     double yVelocityK_i = 1.5e-3 * yVelocityK_p;
     double yVelocityhLim = 1.0;
     double yVelocitylLim = -1.0;
+    double yVelocityK_d = 0;
 
     double zVelocityK_p = 0.2;
     double zVelocityK_i = 1.5e-3 * zVelocityK_p;
     double zVelocityhLim = 0.5;
     double zVelocitylLim = -0.5;
+    double zVelocityK_d = 0;
+
+    // --- Position loop gain constants --- //
+
+    double xPositionK_p = 0.1;
+    double xPositionK_i = 0 * xPositionK_p;
+    double xPositionhLim = 0.5;
+    double xPositionlLim = -0.5;
+    double xPositionK_d = 0.1;
+
+    double yPositionK_p = 0.1;
+    double yPositionK_i = 0 * yPositionK_p;
+    double yPositionhLim = 1.0;
+    double yPositionlLim = -1.0;
+    double yPositionK_d = 0.1;
+
+    double zPositionK_p = 0.05;
+    double zPositionK_i = 0 * zPositionK_p;
+    double zPositionhLim = 0.5;
+    double zPositionlLim = -0.5;
+    double zPositionK_d = 0.1;
 };
 // --- Maxon motor factory functions ---
 inline maxon makeXMotor()

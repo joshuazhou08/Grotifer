@@ -47,7 +47,7 @@ class PIControl
 {
 public:
     PIControl(PIControlPara &pic); // Constructor
-    PIControl(double kp, double ki, double hLim, double lLim);
+    PIControl(double kp, double ki, double hLim, double lLim, double kd);
     ~PIControl();
 
     // Get Data functions
@@ -56,17 +56,19 @@ public:
     double GetError(); // Get the error from the PI controller
 
     // Main Controller Code Function
-    double PICalculation(double setpoint, double actVal);
+    double PIDCalculation(double setpoint, double actVal);
 
 protected:
-    double p_deltaT = 0;               // Discrete time to calculate the integral, [sec]
-    double p_time = 0;                 // Time when the PI Controller is called, [sec]
-    double p_preTime = 0;              // Previous time instance when the PI Controller was called, [sec]
-    double p_setpoint = 0;             // Setpoint/reference of the controller, [deg]
-    double p_actVal = 0;               // Actual value -> actual position
-    double p_kp, p_ki;                 // Controller Gains
-    double p_P_part = 0, p_I_part = 0; // P_part and I_part of the controller
-    double p_uPI = 0;                  // Control signal
-    double p_error = 0;                // Error
-    double p_hLim, p_lLim;             // Limit of the controller
+    double p_deltaT = 0;     // Discrete time to calculate the integral, [sec]
+    double p_time = 0;       // Time when the PI Controller is called, [sec]
+    double p_preTime = 0;    // Previous time instance when the PI Controller was called, [sec]
+    double p_setpoint = 0;   // Setpoint/reference of the controller, [deg]
+    double p_actVal = 0;     // Actual value -> actual position
+    double p_kp, p_ki, p_kd; // Controller Gains
+    double p_P_part = 0, p_I_part = 0,
+           p_D_part = 0; // P_part and I_part and D_partof the controller
+    double p_uPID = 0;   // Control signal
+    double p_error = 0;  // Error
+    double p_prevError = 0;
+    double p_hLim, p_lLim; // Limit of the controller
 };
