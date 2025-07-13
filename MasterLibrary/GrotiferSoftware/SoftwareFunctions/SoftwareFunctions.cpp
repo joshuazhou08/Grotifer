@@ -47,7 +47,11 @@ PIControl::PIControl(PIControlPara &pic)
     p_ki = pic.ki;
     p_hLim = pic.hLim;
     p_lLim = pic.lLim;
-}
+};
+
+PIControl::PIControl(double kp, double ki, double hLim, double lLim)
+    : p_kp(kp), p_ki(ki), p_hLim(hLim), p_lLim(lLim) {
+      };
 
 PIControl::~PIControl() {};
 

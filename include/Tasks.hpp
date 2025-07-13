@@ -81,6 +81,10 @@ private:
     int yMomentumWheelVel = 0;
     int zMomentumWheelVel = 0;
 
+    // PI control loops (position and velocity)
+    PIControl xVelocityLoop,
+        yVelocityLoop, zVelocityLoop;
+
     /**
      * @brief Applies a torque using the momentum wheels
      * @param torque The torque vector to apply

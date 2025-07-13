@@ -19,28 +19,24 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
       p_mmY(std::move(mmY)),
       p_mmZ(std::move(mmZ)),
       p_sunSensor(std::move(sunSensor)),
-      p_inclinometer(std::move(inclinometer))
+      p_inclinometer(std::move(inclinometer)),
+      xVelocityLoop(
+          /*kp=*/config.xVelocityK_p,
+          /*ki=*/config.xVelocityK_i,
+          /*hLim=*/config.xVelocityhLim,
+          /*lLim=*/config.xVelocitylLim),
+      yVelocityLoop(
+          config.yVelocityK_p,
+          config.yVelocityK_i,
+          config.yVelocityhLim,
+          config.yVelocitylLim),
+      zVelocityLoop(
+          config.zVelocityK_p,
+          config.zVelocityK_i,
+          config.zVelocityhLim,
+          config.zVelocitylLim)
 {
     InitializeLogs();
-
-    PIControlPara xParameters{/*kp=*/config.xK_p,
-                              /*ki=*/config.xK_i,
-                              /*hLim=*/config.xhLim,
-                              /*lLim=*/config.xlLim};
-
-    PIControlPara yParameters{/*kp=*/config.yK_p,
-                              /*ki=*/config.yK_i,
-                              /*hLim=*/config.yhLim,
-                              /*lLim=*/config.ylLim};
-
-    PIControlPara zParameters{/*kp=*/config.zK_p,
-                              /*ki=*/config.zK_i,
-                              /*hLim=*/config.zhLim,
-                              /*lLim=*/config.zlLim};
-
-    PIControl xPI(xParameters);
-    PIControl yPI(yParameters);
-    PIControl zPI(zParameters);
 
     if (!attitudeLog || !sensorLog || !angularVelLog || !momentumWheelsLog)
     {
@@ -250,9 +246,9 @@ int AttitudeControl::Run()
         double deltaT = time - preTimeDetumbling;
 
         Vector3d torque;
-        torque(0) = -config.xK_p * angularVelocityVec(0);
-        torque(1) = -config.yK_p * angularVelocityVec(1);
-        torque(2) = -config.zK_p * angularVelocityVec(2);
+        torque(0) = -config.xVelocityK_p * angularVelocityVec(0);
+        torque(1) = -config.yVelocityK_p * angularVelocityVec(1);
+        torque(2) = -config.zVelocityK_p * angularVelocityVec(2);
 
         applyTorque(torque, deltaT);
 

@@ -47,6 +47,7 @@ class PIControl
 {
 public:
     PIControl(PIControlPara &pic); // Constructor
+    PIControl(double kp, double ki, double hLim, double lLim);
     ~PIControl();
 
     // Get Data functions
