@@ -15,13 +15,18 @@ protected:
     double deltaTaskTime; // Task period
     double nextTaskTime;  // Time for next execution
 
+    // **************** IS THIS NEEDED? ****************
+    double currTime; // Current time of task
+
     // State variables for simple state machines
     int state;
     int nextState;
     int numScans;
 
-    // log file line width
+    // log file variables
     unsigned int w = 25;
+    char* stateName;
+    char* nextStateName;
 
 public:
     BaseTask(const char *name, int taskID = 0);
@@ -30,4 +35,8 @@ public:
     virtual int Run(void);
 
     int GetTaskID();
+    void AuditTrailRecord();
 };
+
+// task ID: 0 = attitude control, 1 = torp control, 2 = torp master control
+// ************* DEFINE GetTaskID and AuditTrailRecord fucntions ***************

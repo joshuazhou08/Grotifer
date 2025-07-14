@@ -2,8 +2,13 @@
 
 #include "GrotiferMaster.hpp"
 #include "Actuators.hpp"
-#include "Devices.cpp"
+#include "Devices.hpp"
+#include "SoftwareFunctions.hpp"
 
+#define RIGHT_STEPPER_1 "/dev/right_boom_stepper_1"
+#define RIGHT_STEPPER_2 "/dev/right_boom_stepper_2"
+#define LEFT_STEPPER_1 "/dev/left_boom_stepper_1"
+#define LEFT_STEPPER_2 "/dev/left_boom_stepper_2"
 
 // ====== ATTITUDE CONTROL ====== //
 
@@ -32,6 +37,7 @@ struct AttitudeConfig
 // --- Torp config --- //
 struct TorpConfig
 {
+    // ********* deltaTaskTime defined somewhere better than here and below??  *********
     static inline constexpr double deltaTaskTime = 150.0e-3;
     static inline constexpr double gearRatio = 31.1;
 
@@ -50,27 +56,6 @@ struct TorpConfig
 struct TorpMasterConfig
 {
     static inline constexpr double deltaTaskTime = 150.0e-3;
-};
-
-
-// --- Homing profile --- //
-
-struct homingProfilePara
-{
-    double homingVel;
-    double maxAcc;
-    double offsetPos;
-    double offsetPosLim;
-    double startPosLim;
-};
-
-// --- PI control --- //
-struct PIControlPara
-{
-    double kp;
-    double ki;
-    double hLim;
-    double lLim;
 };
 
 // --- Maxon motor factory functions --- //
@@ -165,6 +150,7 @@ inline maxon makeRightMotor()
 
 // --- PI torp motion controller --- //
 
+// declared in SoftwareFunctions.hpp
 inline PIControlPara leftTorpPI()
 {
     PIControlPara PIctrl;
@@ -185,6 +171,7 @@ inline PIControlPara rightTorpPI()
 
 // --- Torp homing profile functions --- //
 
+// declared in SoftwareFunctions.hpp
 inline homingProfilePara leftHomingProf()
 {
     homingProfilePara homing;
@@ -207,7 +194,8 @@ inline homingProfilePara rightHomingProf()
 
 // --- Stepper motor parameter functions --- //
 
-inline stepperPara leftStepper1()
+// declared in Actuators.hpp
+inline stepperPara leftStepper1Params()
 {
     stepperPara step;
     step.sm = open(LEFT_STEPPER_1, O_RDWR | O_NOCTTY);
@@ -218,10 +206,10 @@ inline stepperPara leftStepper1()
     step.startSpeed = TorpConfig::stepperSpeed;
 }
 
-inline stepperPara leftStepper2()
+inline stepperPara leftStepper2Params()
 {
     stepperPara step;
-    step.sm = 0;
+    step.sm = open(LEFT_STEPPER_2, O_RDWR | O_NOCTTY);
     step.baudrate = 9600;
     step.maxCurr = 3500;
     step.stepMode = 0;
@@ -229,10 +217,10 @@ inline stepperPara leftStepper2()
     step.startSpeed = TorpConfig::stepperSpeed;
 }
 
-inline stepperPara rightStepper1 ()
+inline stepperPara rightStepper1Params()
 {
     stepperPara step;
-    step.sm = 0;
+    step.sm = open(RIGHT_STEPPER_1, O_RDWR | O_NOCTTY);
     step.baudrate = 9600;
     step.maxCurr = 3500;
     step.stepMode = 0;
@@ -240,10 +228,10 @@ inline stepperPara rightStepper1 ()
     step.startSpeed = TorpConfig::stepperSpeed;
 }
 
-inline stepperPara rightStepper2()
+inline stepperPara rightStepper2Params()
 {
     stepperPara step;
-    step.sm = 0;
+    step.sm = open(RIGHT_STEPPER_2, O_RDWR | O_NOCTTY);
     step.baudrate = 9600;
     step.maxCurr = 3500;
     step.stepMode = 0;
@@ -252,4 +240,5 @@ inline stepperPara rightStepper2()
 }
 
 // encoder?? 
+
     

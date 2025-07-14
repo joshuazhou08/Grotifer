@@ -4,6 +4,10 @@
 #include "GrotiferMaster.hpp"
 #include "Config.hpp"
 #include <memory>
+#include "Tasks.hpp"
+
+#define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
+
 
 class Devices
 {
@@ -29,7 +33,11 @@ public:
     std::unique_ptr<LabJackInclinometer> releaseInclinometer();
     std::unique_ptr<ModbusSunSensor> releaseSunSensor();
     std::unique_ptr<LJEncoder3Channels> releaseEncoder();
-     
+    std::unique_ptr<StepperMotor> releaseLeftStepper1();
+    std::unique_ptr<StepperMotor> releaseLeftStepper2();
+    std::unique_ptr<StepperMotor> releaseRightStepper1();
+    std::unique_ptr<StepperMotor> releaseRightStepper2();
+
 private:
     HANDLE hDevice = nullptr;      // labjack handle
     modbus_t *modbusCtx = nullptr; // modbus context
@@ -58,10 +66,28 @@ private:
     std::unique_ptr<LabJackU6> p_grotiferLJU6 = nullptr;
     std::unique_ptr<LabJackInclinometer> p_inclinometer = nullptr;
 
-    // Stepper motors ???
-
     // Encoder ???
     std::unique_ptr<LJEncoder3Channels> p_lgEnc3C = nullptr;
+    std::unique_ptr<LJEncoder3Channels> p_lgEnc3C_l = nullptr;
+    std::unique_ptr<LJEncoder3Channels> p_lgEnc3C_r = nullptr;
     
+    // Stepper motors
+    std::unique_ptr<StepperMotor> p_left_st1 = nullptr;
+    std::unique_ptr<StepperMotor> p_left_st2 = nullptr;
+    std::unique_ptr<StepperMotor> p_right_st1 = nullptr;
+    std::unique_ptr<StepperMotor> p_right_st2 = nullptr;
+
     // Stepper parameter variables
+    stepperPara leftStepper1Para;
+    stepperPara leftStepper2Para;
+    stepperPara rightStepper1Para;
+    stepperPara rightStepper2Para;
+
+    // Torp control
+    std::unique_ptr<TorpControl> p_left_tc = nullptr;
+    std::unique_ptr<TorpControl> p_right_tc = nullptr;
+
+    
+
+
 };

@@ -71,16 +71,11 @@ private:
 class TorpControl : public BaseTask
 {
 public:
-    TorpControl(char* taskname,
-                unsigned int taskID,
-                homingProfilePara &hpp,
-                PIControl &pi,
-                MaxonMotor &mm,
-                LJEncoder3Channels &ljEnc3C,
-                bool useMotEncFlag,
-                double gearRatio,
-                ofstream &torpControlDataFile,
-                ofstream &auditTrailDataFile);
+    TorpControl(homingProfilePara homingPara,
+                std::unique_ptr<PIControl> p_pi,
+                std::unique_ptr<MaxonMotor> p_mm,
+                std::unique_ptr<LJEncoder3Channels> p_ljEnc3C,
+                double gearRatio);
     ~TorpControl() override;
     int Run() override;
 
@@ -96,34 +91,101 @@ private:
     static constexpr int SYNCHRONIZING = 4;
     
     void InitializeLogs();
-    std::ofstream auditTrailDataFile;
-    std::ofstream torpControlDataFile;
+    std::ofstream auditTrailLog;
+    std::ofstream torpControlLog;
+
+    // torp maxon motors
+    std::unique_ptr<MaxonMotor> p_mmL;
+    std::unique_ptr<MaxonMotor> p_mmR;
+    std::unique_ptr<MaxonMotor> p_mm;
+
+    // encoder
+    std::unique_ptr<LJEncoder3Channels> p_ljEnc3C;
+
+    // PI Control
+    std::unique_ptr<PIControl> p_pi;
 
 protected:
     // torp ang pos, prev ang pos, ang vel, motor pos, motor vel, pos error
-    double p_torpPos, p_torpPrePos, p_torpVel, p_motPos, p_motVel, p_posErr;
+    double torpPos, torpPrePos, torpVel, motPos, motVel, posErr;
 
-    double p_gearRatio; // between motor and torp
-    double p_time, p_preTime, p_deltaT; // time value to calc integral
-    double p_tA, p_tB;// time to change homing vel profile
+    double gearRatio = 1; // between motor and torp
+    double time, t0, deltaT; // time value to calc integral
+    double tA, tB;// time to change homing vel profile
+
+    double time, preTime, deltaT, timeStart, timeEnd; // synchronization variables
 
     // homing vel, max acc, acc mag, offset from home pos, offset pos lim, 
-    double p_homingVel, p_maxAcc, p_accMag, p_offsetPos, p_offsetPosLim;
+    double homingVel, maxAcc, accMag, offsetPos, offsetPosLim;
     //limit of proximity to start pos, home pos of torp, home pos of motor, ref start pos, actual start pos, 
-    double p_startPosLim, p_homeTorpPos, p_homeMotPos, p_startPosRef, p_startPosAct;
+    double startPosLim, homeTorpPos, homeMotPos, startPosRef, startPosAct;
     // ref pos, ref acc profile, ref vel profile, desired velocity to maxon
-    double p_refPos, p_refAcc, p_refVel, p_desVel;
+    double refPos, refAcc, refVel, desVel;
 
-    bool p_flipSign; //CCW (+) OR CW (-)
+    bool flipSign; //CCW (+) OR CW (-)
     
-    bool p_useMotEncFlag; // main enc is motor's encoder
+    bool syncEnabled; // ready to sync flag
 
     // done homing, index flag, ready for sync flag, pos ready within start region flag, enabled to run in sync state
-    bool p_doneHomingFlag, p_indexFlag, p_readySync, p_startPosRegionFlag, p_enableRunning;
+    bool doneHomingFlag, indexFlag, readySync, startPosRegionFlag, p_enableRunning;
 
-    int p_movingAverageFilterSpan;
+    int movingAverageFilterSpan = 5;
+    MovingAverage velMAFilter{movingAverageFilterSpan};
     //MovingAverage p_velMAFilter(p_movingAverageFilterSpan);
 
-    ofstream *p_torpControlDataFile;
     unsigned int w = 25;
+
+    // functions for logging
+    double GetRefPosition() {return refPos;}
+    double GetRefVelocity() {return refVel;}
+    double GetRefAcc() {return refAcc;}
+    double GetHomeTorpPos() {return homeTorpPos;}
+    double GetHomeMotPos() {return homeMotPos;}
+    double GetStartingPosAct() {return startPosAct;}
+    double GetStartingPosRef() {return startPosRef;}
+    double GetDoneHomingFlag() {return doneHomingFlag;}
+    double GetIndexFlag() {return indexFlag;}
+    double GetMotorPos() {return motPos;}
+    double GetMotorVel() {return motVel;}
+    double GetPosError() {return posErr;}
+    double GetTorpPos() {return torpPos;}
+    double GetTorpVel() {return torpVel;}
+    double GetDesVelCmd() {return desVel;}
+    
+    void SetRefPositionVelocity(double refPos, double refVel) // used in torpMasterControl
+    {
+        refPos = startPosAct + ((double) GetSignDir(flipSign)) * refPos;
+        refVel = ((double) GetSignDir(flipSign)) * refVel;
+    }
+
+    int GetSignDir(bool flipSignFlag)
+    {
+        int signResult = (!flipSignFlag) ? 1 : -1;
+        return signResult;
+    }
+
+    void SetReadySyncFlag(bool val) // used in torpMasterControl
+    {
+        readySync = val;
+    }
+
+    void SetSyncEnabledFlag(bool val) // used in torpMasterControl
+    {
+        syncEnabled = val;
+    }
+
+    int roundingFunc(double val) 
+    {
+        double threshold = 0.5;
+        double diff = abs(val - (int) val);
+        int result;
+        if (val >= 0) // if positive
+        {
+            result = (int) (diff >= threshold) ? (int) val + 1 : (int) val;
+        }
+        else // if negative
+        {
+            result = (int) (diff >= threshold) ? (int) val - 1 : (int) val;
+        }
+    }
 };

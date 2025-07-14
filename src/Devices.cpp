@@ -4,11 +4,6 @@
 #include "GrotiferMaster.hpp"
 #include <cstdlib>
 
-#define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
-#define RIGHT_STEPPER_1 "/dev/right_boom_stepper_1"
-#define RIGHT_STEPPER_2 "/dev/right_boom_stepper_2"
-#define LEFT_STEPPER_1 "/dev/left_boom_stepper_1"
-#define LEFT_STEPPER_2 "/dev/left_boom_stepper_2"
 
 // Constructor
 Devices::Devices()
@@ -134,39 +129,48 @@ bool Devices::initMaxonMotors()
 
 bool Devices::initUSDigiEnc()
 {
-    // ***************** FILL THIS IN ************************
+    // ************ FIGURE OUT INITIALIZATION STUFF *************************
+    p_lgEnc3C_r = std::make_unique<LJEncoder3Channels>(*p_grotiferLJU6, 400, 1);
+    p_lgEnc3C_l = std::make_unique<LJEncoder3Channels>(*p_grotiferLJU6, 400, 2);
 };
 
 bool Devices::initSteppers()
 {
     
-    leftStepper2Para.sm = open(LEFT_STEPPER_2, O_RDWR | O_NOCTTY);
-    rightStepper1Para.sm = open(RIGHT_STEPPER_1, O_RDWR | O_NOCTTY);
-    rightStepper2Para.sm = open(RIGHT_STEPPER_2, O_RDWR | O_NOCTTY);
+    leftStepper1Para = leftStepper1Params();
+    leftStepper2Para = leftStepper2Params();
+    rightStepper1Para = rightStepper1Params();
+    rightStepper2Para = rightStepper2Params();
 
     if (leftStepper1Para.sm == -1)
     {
-        perror(LEFT_STEPPER_1);
+        perror("LEFT_STEPPER_1 failed to open");
         return -1;
     }
 
     if (leftStepper2Para.sm == -1)
     {
-        perror(LEFT_STEPPER_2);
+        perror("LEFT_STEPPER_2 failed to open");
         return -1;
     }
 
     if (rightStepper1Para.sm == -1)
     {
-        perror(RIGHT_STEPPER_1);
+        perror("RIGHT_STEPPER_1n failed to open");
         return -1;
     }
 
     if (rightStepper2Para.sm == -1)
     {
-        perror(RIGHT_STEPPER_2);
+        perror("RIGHT_STEPPER_2 failed to open");
         return -1;
     }
+
+    p_left_st1 = std::make_unique<StepperMotor>(leftStepper1Para);
+    p_left_st2 = std::make_unique<StepperMotor>(leftStepper2Para);
+    p_right_st1 = std::make_unique<StepperMotor>(rightStepper1Para);
+    p_right_st2 = std::make_unique<StepperMotor>(rightStepper2Para);
+    
 }
 
 // Ownership transfer functions
@@ -215,8 +219,6 @@ std::unique_ptr<MaxonMotor> Devices::releaseMMR()
     return std::move(p_mmR);
 }
 
-
-
 std::unique_ptr<LabJackU6> Devices::releaseLabJackU6()
 {
     if (!p_grotiferLJU6)
@@ -242,4 +244,49 @@ std::unique_ptr<ModbusSunSensor> Devices::releaseSunSensor()
         std::cerr << "Sun Sensor has not been initialized!" << std::endl;
     }
     return std::move(p_sunSensor);
+}
+
+std::unique_ptr<LJEncoder3Channels> Devices::releaseEncoder()
+{
+    if (!p_lgEnc3C)
+    {
+        std::cerr << "Encoder has not been initialized!" << std::endl;
+    }
+    return std::move(p_lgEnc3C);
+}
+
+std::unique_ptr<StepperMotor> Devices::releaseLeftStepper1()
+{
+    if (!p_left_st1)
+    {
+        std::cerr << "Left Stepper 1 has not been initialized!" << std::endl;
+    }
+    return std::move(p_left_st1);
+}
+
+std::unique_ptr<StepperMotor> Devices::releaseLeftStepper2()
+{
+    if (!p_left_st2)
+    {
+        std::cerr << "Left Stepper 2 has not been initialized!" << std::endl;
+    }
+    return std::move(p_left_st2);
+}
+
+std::unique_ptr<StepperMotor> Devices::releaseRightStepper1()
+{
+    if (!p_right_st1)
+    {
+        std::cerr << "Left Stepper 2 has not been initialized!" << std::endl;
+    }
+    return std::move(p_right_st1);
+}
+
+std::unique_ptr<StepperMotor> Devices::releaseRightStepper2()
+{
+    if (!p_right_st2)
+    {
+        std::cerr << "Left Stepper 2 has not been initialized!" << std::endl;
+    }
+    return std::move(p_right_st2);
 }
