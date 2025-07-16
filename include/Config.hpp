@@ -52,12 +52,6 @@ struct TorpConfig
     // other variables
 };
 
-// --- Torp master control task --- //
-struct TorpMasterConfig
-{
-    static inline constexpr double deltaTaskTime = 150.0e-3;
-};
-
 // --- Maxon motor factory functions --- //
 
 inline maxon makeXMotor()

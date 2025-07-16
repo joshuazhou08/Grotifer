@@ -26,6 +26,7 @@ TorpControl::TorpControl(homingProfilePara homingPara,
     offsetPosLim = homingPara.offsetPosLim;
     startPosLim = homingPara.startPosLim;
     flipSign = (homingVel >= 0) ? false : true;
+    nextTaskTime = 0;
     state = INITIALIZING_TORP;
     nextState = INITIALIZING_TORP;
 
@@ -42,11 +43,11 @@ void TorpControl::InitializeLogs()
 
     torpControlLog.open("logs/torpcontrol.txt", std::ios::out | std::ios::app);
 
-    torpControlLog << left << setw(w) << GetTimeNow() << left << setw(w) << GetHomeTorpPos() << left << setw(w) << GetStartingPosRef()
-                                                      << left << setw(w) << GetRefPosition() << left << setw(w) << GetTorpPos()
-                                                      << left << setw(w) << GetRefVelocity() << left << setw(w) << GetTorpVel()
-                                                      << left << setw(w) << GetMotorPos() << left << setw(w) << GetMotorVel()
-                                                      << left << setw(w) << GetPosError() << left << setw(w) << GetDesVelCmd() << endl;
+    torpControlLog << left << setw(w) << "Time (s)" << left << setw(w) << "Home Torp Position (deg)" << left << setw(w) << "Staring Position Ref (deg)"
+                                                      << left << setw(w) << "Reference Position (deg)" << left << setw(w) << "Torp Position (deg)"
+                                                      << left << setw(w) <<"Reference Velocity (RPM)" << left << setw(w) << "Torp Velocity (RPM)"
+                                                      << left << setw(w) << "Motor Position (deg)" << left << setw(w) << "Motor Velocity (RPM)"
+                                                      << left << setw(w) << "Position Error (deg)" << left << setw(w) << "Commanded Velocity (RPM)" << endl;
 }
 
 int TorpControl::Run()
@@ -224,7 +225,8 @@ int TorpControl::Run()
 
     // actuate motor
     (*p_mm).RunWithVelocity(roundingFunc(desVel * gearRatio));
-
+    
+    // log data
     torpControlLog << left << setw(w) << GetTimeNow() << left << setw(w) << GetHomeTorpPos() << left << setw(w) << GetStartingPosRef()
                                                                       << left << setw(w) << GetRefPosition() << left << setw(w) << GetTorpPos()
                                                                       << left << setw(w) << GetRefVelocity() << left << setw(w) << GetTorpVel()

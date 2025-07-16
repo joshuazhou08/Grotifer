@@ -66,16 +66,16 @@ private:
     std::unique_ptr<LabJackU6> p_grotiferLJU6 = nullptr;
     std::unique_ptr<LabJackInclinometer> p_inclinometer = nullptr;
 
-    // Encoder ???
+    // Encoder
     std::unique_ptr<LJEncoder3Channels> p_lgEnc3C = nullptr;
     std::unique_ptr<LJEncoder3Channels> p_lgEnc3C_l = nullptr;
     std::unique_ptr<LJEncoder3Channels> p_lgEnc3C_r = nullptr;
     
     // Stepper motors
-    std::unique_ptr<StepperMotor> p_left_st1 = nullptr;
-    std::unique_ptr<StepperMotor> p_left_st2 = nullptr;
-    std::unique_ptr<StepperMotor> p_right_st1 = nullptr;
-    std::unique_ptr<StepperMotor> p_right_st2 = nullptr;
+    std::unique_ptr<StepperMotor> p_l_st1 = nullptr;
+    std::unique_ptr<StepperMotor> p_l_st2 = nullptr;
+    std::unique_ptr<StepperMotor> p_r_st1 = nullptr;
+    std::unique_ptr<StepperMotor> p_r_st2 = nullptr;
 
     // Stepper parameter variables
     stepperPara leftStepper1Para;
@@ -84,8 +84,8 @@ private:
     stepperPara rightStepper2Para;
 
     // Torp control
-    std::unique_ptr<TorpControl> p_left_tc = nullptr;
-    std::unique_ptr<TorpControl> p_right_tc = nullptr;
+    std::unique_ptr<TorpControl> p_l_tc = nullptr;
+    std::unique_ptr<TorpControl> p_r_tc = nullptr;
 
     
 
