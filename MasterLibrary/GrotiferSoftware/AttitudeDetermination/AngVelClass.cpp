@@ -33,7 +33,7 @@ double AngularVel::RotAngleAboutRotAxis(Matrix3d rotMat)
 Matrix3d AngularVel::RotMatBodyToBody(Matrix3d prevRotMat, Matrix3d curRotMat)
 {
     Matrix3d incRotMat;
-    incRotMat = prevRotMat.transpose() * curRotMat;
+    incRotMat = curRotMat * prevRotMat.transpose();
 
     return incRotMat;
 }

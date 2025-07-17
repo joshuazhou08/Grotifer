@@ -61,19 +61,14 @@ double PIControl::GetKi() { return p_ki; }       // Get k_i
 double PIControl::GetError() { return p_error; } // Get the error from the PI controller
 
 // Main Controller function
-double PIControl::PIDCalculation(double setpoint, double actVal)
+double PIControl::PICalculation(double setpoint, double actVal)
 {
     p_setpoint = setpoint;
     p_actVal = actVal;
 
     p_time = GetTimeNow();         // Get the time when starting to calculate the control signal
     p_deltaT = p_time - p_preTime; // Calculate the actual time it take between two calls
-
-    if (p_deltaT > 1) // If deltaT is called 1 second apart it means p_preTime is invalid (first run)
-    {
-        p_deltaT = 0;
-    }
-    p_preTime = p_time; // Assign current time into previous time
+    p_preTime = p_time;            // Assign current time into previous time
 
     p_error = p_setpoint - p_actVal; // Calculate error
 
@@ -90,26 +85,9 @@ double PIControl::PIDCalculation(double setpoint, double actVal)
     else
         p_I_part += p_ki * p_error * p_deltaT;
 
-    // D part
-    if (p_deltaT > 0.0)
-    {
-        const double derivative = (p_error - p_prevError) / p_deltaT;
-        p_D_part = p_kd * derivative;
-    }
-    else
-    {
-        p_D_part = 0.0;
-    }
+    // Calculate the control signal
+    p_uPID = (p_P_part + p_I_part);
 
-    double u = p_P_part + p_I_part + p_D_part;
-    if (u > p_hLim)
-        u = p_hLim;
-    else if (u < p_lLim)
-        u = p_lLim;
-
-    // 7) Save for next time
-    p_prevError = p_error;
-    p_uPID = u;
-
+    // Return the control signal
     return p_uPID;
 }

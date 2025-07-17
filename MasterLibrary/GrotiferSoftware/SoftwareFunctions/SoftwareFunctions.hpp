@@ -56,7 +56,7 @@ public:
     double GetError(); // Get the error from the PI controller
 
     // Main Controller Code Function
-    double PIDCalculation(double setpoint, double actVal);
+    double PICalculation(double setpoint, double actVal);
 
 protected:
     double p_deltaT = 0;     // Discrete time to calculate the integral, [sec]
