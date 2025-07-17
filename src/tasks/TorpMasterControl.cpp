@@ -290,7 +290,51 @@ int TorpMasterControl::Run()
 
     timeEnd = GetTimeNow();
     AuditTrailRecord();
-    return 1;
+    
+    state = nextState;
+    std::string nextStateString;
+    if (nextState != state) 
+    {
+        switch (nextState)
+        {
+            case INITIALIZING:
+            {
+                nextStateString = "Torp Master Control Tasks -- Initializing.";
+            }
+            case HOMING:
+            {
+                nextStateString = "Torp Master Control Tasks -- Homing.";
+            }
+            case ACCELERATING:
+            {
+                nextStateString = "Torp Master Control Tasks -- Accelerating.";
+            }
+            case CRUISING:
+            {
+                nextStateString = "Torp Master Control Tasks -- Cruising.";
+            }
+            case DEPLOYING_MASS:
+            {
+                nextStateString = "Torp Master Control Tasks -- Deploying Masses.";
+            }
+            case RETRACTING_MASS:
+            {
+                nextStateString = "Torp Master Control Tasks -- Retracting Masses.";
+            }
+            case DECELERATING: 
+            {
+                nextStateString = "Torp Master Control Tasks -- Decelerating";
+            }
+            case STOPPING:
+            {
+                nextStateString = "Torp Master Control Tasks -- Stopping.";
+            }
+        }
+        std::cout << "[Torp Master Control] Switching to state: " << nextStateString << std::endl;
+    }
 
+    nextTaskTime += deltaTaskTime;
+    return 0;
+    
 }
 

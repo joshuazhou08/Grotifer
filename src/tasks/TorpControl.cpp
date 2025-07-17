@@ -271,8 +271,3 @@ int TorpControl::Run()
     return 0;
 
 }
-
-
-
-
-// *********** FLESH OUT FUNCTIONS USED ******************
