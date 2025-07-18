@@ -306,3 +306,40 @@ protected:
     StepperMotor *p_r_st2 = nullptr;
 
 };
+
+class TaskCoordinate : public BaseTask
+{
+    public: 
+        TaskCoordinate(std::unique_ptr<TorpControl> p_l_tc,
+                       std::unique_ptr<TorpControl> p_r_tc,
+                       std::unique_ptr<TorpMasterControl> p_tmc,
+                       std::unique_ptr<AttitudeControl> p_attc,
+                       ofstream auditTrailLog);
+
+        ~TaskCoordinate() override;
+        int Run() override;
+
+
+    private:
+        // flags and config
+        TaskCoordinateConfig config;
+
+        // states
+        static const unsigned int INITIALIZING = 0;
+        static const unsigned int DEPLOYING = 1;
+        static const unsigned int MOVING = 2;
+        static const unsigned int STOPPING = 3;
+
+        void InitializeLogs();
+        std::ofstream auditTrailLog;
+
+    protected:
+        
+        // flags
+        bool holdPosAfterDeployFlag, sensorsOnlyFlag, controlBodyOnlyFlag, controlBodyNoFindSunFlag;
+
+        // variables
+        double timeStart;
+
+        AttitudeControl *p_attc = nullptr;
+};

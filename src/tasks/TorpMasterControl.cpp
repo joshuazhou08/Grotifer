@@ -335,6 +335,6 @@ int TorpMasterControl::Run()
 
     nextTaskTime += deltaTaskTime;
     return 0;
-    
+
 }
 

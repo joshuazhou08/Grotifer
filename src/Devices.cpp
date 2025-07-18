@@ -166,10 +166,10 @@ bool Devices::initSteppers()
         return -1;
     }
 
-    p_left_st1 = std::make_unique<StepperMotor>(leftStepper1Para);
-    p_left_st2 = std::make_unique<StepperMotor>(leftStepper2Para);
-    p_right_st1 = std::make_unique<StepperMotor>(rightStepper1Para);
-    p_right_st2 = std::make_unique<StepperMotor>(rightStepper2Para);
+    p_l_st1 = std::make_unique<StepperMotor>(leftStepper1Para);
+    p_l_st2 = std::make_unique<StepperMotor>(leftStepper2Para);
+    p_r_st1 = std::make_unique<StepperMotor>(rightStepper1Para);
+    p_r_st2 = std::make_unique<StepperMotor>(rightStepper2Para);
     
 }
 
@@ -257,36 +257,36 @@ std::unique_ptr<LJEncoder3Channels> Devices::releaseEncoder()
 
 std::unique_ptr<StepperMotor> Devices::releaseLeftStepper1()
 {
-    if (!p_left_st1)
+    if (!p_l_st1)
     {
         std::cerr << "Left Stepper 1 has not been initialized!" << std::endl;
     }
-    return std::move(p_left_st1);
+    return std::move(p_l_st1);
 }
 
 std::unique_ptr<StepperMotor> Devices::releaseLeftStepper2()
 {
-    if (!p_left_st2)
+    if (!p_l_st2)
     {
         std::cerr << "Left Stepper 2 has not been initialized!" << std::endl;
     }
-    return std::move(p_left_st2);
+    return std::move(p_l_st2);
 }
 
 std::unique_ptr<StepperMotor> Devices::releaseRightStepper1()
 {
-    if (!p_right_st1)
+    if (!p_r_st1)
     {
         std::cerr << "Left Stepper 2 has not been initialized!" << std::endl;
     }
-    return std::move(p_right_st1);
+    return std::move(p_r_st1);
 }
 
 std::unique_ptr<StepperMotor> Devices::releaseRightStepper2()
 {
-    if (!p_right_st2)
+    if (!p_r_st2)
     {
         std::cerr << "Left Stepper 2 has not been initialized!" << std::endl;
     }
-    return std::move(p_right_st2);
+    return std::move(p_r_st2);
 }

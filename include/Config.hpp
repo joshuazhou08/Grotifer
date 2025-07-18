@@ -52,6 +52,15 @@ struct TorpConfig
     // other variables
 };
 
+struct TaskCoordinateConfig
+{
+    static inline constexpr double deltaTaskTime = 150.0e-3;
+    static inline constexpr bool holdPosAfterDeployFlag = true;
+    static inline constexpr bool sensorsOnlyFlag = false;
+    static inline constexpr bool controlBodyOnlyFlag = false;
+    static inline constexpr bool controlBodyNoFindSunFlag = false;
+};
+
 // --- Maxon motor factory functions --- //
 
 inline maxon makeXMotor()
