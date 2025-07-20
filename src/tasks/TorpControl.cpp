@@ -1,12 +1,14 @@
+#pragma once
 #include "Tasks.hpp"
 #include "Config.hpp"
 #include "Devices.hpp"
+#include "SoftwareFunctions.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
 
 TorpControl::TorpControl(homingProfilePara homingPara, 
-                        std::unique_ptr<PIControl> p_pi, 
+                        std::shared_ptr<PIControl> p_pi, 
                         std::unique_ptr<MaxonMotor> p_mm, 
                         std::unique_ptr<LJEncoder3Channels> p_ljEnc3C,
                         double gearRatio)

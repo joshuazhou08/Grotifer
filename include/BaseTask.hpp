@@ -10,7 +10,7 @@ class BaseTask
 protected:
     const char *name;
     int taskID;
-
+    char* taskName;
     // Task timing
     double deltaTaskTime; // Task period
     double nextTaskTime;  // Time for next execution
@@ -28,14 +28,18 @@ protected:
     char* stateName;
     char* nextStateName;
 
+    std::ofstream *auditTrailLog = NULL;
+
 public:
     BaseTask(const char *name, int taskID = 0);
     virtual ~BaseTask();
 
     virtual int Run(void);
 
-    int GetTaskID();
+    double duration, timeEnd, timeStart;
+
     void AuditTrailRecord();
+
 };
 
 // task ID: 0 = attitude control, 1 = torp control, 2 = torp master control

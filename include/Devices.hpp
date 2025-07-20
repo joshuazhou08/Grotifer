@@ -4,7 +4,6 @@
 #include "GrotiferMaster.hpp"
 #include "Config.hpp"
 #include <memory>
-#include "Tasks.hpp"
 
 #define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
 
@@ -82,12 +81,5 @@ private:
     stepperPara leftStepper2Para;
     stepperPara rightStepper1Para;
     stepperPara rightStepper2Para;
-
-    // Torp control
-    std::unique_ptr<TorpControl> p_l_tc = nullptr;
-    std::unique_ptr<TorpControl> p_r_tc = nullptr;
-
-    
-
 
 };

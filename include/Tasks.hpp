@@ -5,6 +5,12 @@
 #include "Config.hpp"
 #include "GrotiferMaster.hpp"
 
+
+struct AttitudeConfig;
+struct TorpConfig;
+struct TorpMasterConfig;
+
+
 // -----------------------
 // Attitude Control
 // -----------------------
@@ -72,7 +78,7 @@ class TorpControl : public BaseTask
 {
 public:
     TorpControl(homingProfilePara homingPara,
-                std::unique_ptr<PIControl> p_pi,
+                std::shared_ptr<PIControl> p_pi,
                 std::unique_ptr<MaxonMotor> p_mm,
                 std::unique_ptr<LJEncoder3Channels> p_ljEnc3C,
                 double gearRatio);
@@ -150,7 +156,6 @@ private:
     static constexpr int SYNCHRONIZING = 4;
     
     void InitializeLogs();
-    std::ofstream auditTrailLog;
     std::ofstream torpControlLog;
 
     // torp maxon motors
@@ -201,8 +206,8 @@ class TorpMasterControl : public BaseTask
 {
 public: 
     TorpMasterControl(bool startDeployBySoftwareFlag, 
-                      std::unique_ptr<TorpControl> p_l_tc, 
-                      std::unique_ptr<TorpControl> p_r_tc,
+                      std::shared_ptr<TorpControl> p_l_tc, 
+                      std::shared_ptr<TorpControl> p_r_tc,
                       std::unique_ptr<StepperMotor> p_l_st1, 
                       std::unique_ptr<StepperMotor> p_l_st2, 
                       std::unique_ptr<StepperMotor> p_r_st1, 
@@ -261,12 +266,12 @@ private:
 
     void InitializeLogs();
     std::ofstream masterTorpLog;
-    std::ofstream auditTrailLog;
 
     // pointers for torp control tasks
-    std::unique_ptr<TorpControl> p_l_tc;
-    std::unique_ptr<TorpControl> p_r_tc;
+    std::shared_ptr<TorpControl> p_l_tc;
+    std::shared_ptr<TorpControl> p_r_tc;
     
+
     // pointers for steppers
     std::unique_ptr<StepperMotor> p_l_st1; // left stepper 1
     std::unique_ptr<StepperMotor> p_l_st2; // left stepper 2
@@ -297,21 +302,13 @@ protected:
 
     unsigned int w = 25;
 
-    TorpControl *p_l_tc = nullptr;
-    TorpControl *p_r_tc = nullptr;
-
-    StepperMotor *p_l_st1 = nullptr;
-    StepperMotor *p_l_st2 = nullptr;
-    StepperMotor *p_r_st1 = nullptr;
-    StepperMotor *p_r_st2 = nullptr;
-
 };
 
 class TaskCoordinate : public BaseTask
 {
     public: 
-        TaskCoordinate(std::unique_ptr<TorpControl> p_l_tc,
-                       std::unique_ptr<TorpControl> p_r_tc,
+        TaskCoordinate(std::shared_ptr<TorpControl> p_l_tc,
+                       std::shared_ptr<TorpControl> p_r_tc,
                        std::unique_ptr<TorpMasterControl> p_tmc,
                        std::unique_ptr<AttitudeControl> p_attc,
                        ofstream auditTrailLog);
@@ -329,9 +326,6 @@ class TaskCoordinate : public BaseTask
         static const unsigned int DEPLOYING = 1;
         static const unsigned int MOVING = 2;
         static const unsigned int STOPPING = 3;
-
-        void InitializeLogs();
-        std::ofstream auditTrailLog;
 
     protected:
         

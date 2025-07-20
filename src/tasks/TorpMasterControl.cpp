@@ -6,8 +6,8 @@
 #include <filesystem>
 
 TorpMasterControl::TorpMasterControl(bool startDeployBySoftwareFlag, 
-                                     std::unique_ptr<TorpControl> p_l_tc, 
-                                     std::unique_ptr<TorpControl> p_r_tc,
+                                     std::shared_ptr<TorpControl> p_l_tc, 
+                                     std::shared_ptr<TorpControl> p_r_tc,
                                      std::unique_ptr<StepperMotor> p_l_st1, 
                                      std::unique_ptr<StepperMotor> p_l_st2, 
                                      std::unique_ptr<StepperMotor> p_r_st1, 
@@ -44,8 +44,6 @@ TorpMasterControl::~TorpMasterControl()
 {
     if (masterTorpLog.is_open())
         masterTorpLog.close();
-    if (auditTrailLog.is_open())
-        auditTrailLog.close();
 }
 
 void TorpMasterControl::InitializeLogs()
@@ -280,8 +278,8 @@ int TorpMasterControl::Run()
         velProfVal = velProfVal + accProfVal * deltaT;
         posProfVal = posProfVal + (velProfVal * (deltaT / 60.0) * 360.0);
 
-        ActuatingTorp(p_l_tc, posProfVal, velProfVal);
-        ActuatingTorp(p_r_tc, posProfVal, velProfVal);
+        ActuatingTorp(p_l_tc.get(), posProfVal, velProfVal);
+        ActuatingTorp(p_r_tc.get(), posProfVal, velProfVal);
         
     }
 

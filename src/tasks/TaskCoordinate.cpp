@@ -5,14 +5,13 @@
 #include <stdexcept>
 #include <filesystem>
 
-TaskCoordinate::TaskCoordinate(std::unique_ptr<TorpControl> p_l_tc,
-                               std::unique_ptr<TorpControl> p_r_tc,
+TaskCoordinate::TaskCoordinate(std::shared_ptr<TorpControl> p_l_tc,
+                               std::shared_ptr<TorpControl> p_r_tc,
                                std::unique_ptr<TorpMasterControl> p_tmc,
                                std::unique_ptr<AttitudeControl> p_attc,
                                ofstream auditTrailLog)
     : BaseTask("TaskCoordinate", 3)
 {
-    InitializeLogs();
     if (!auditTrailLog)
     {
         throw std::runtime_error("Failed to open one or more log files in Task Control.");
@@ -30,18 +29,7 @@ TaskCoordinate::TaskCoordinate(std::unique_ptr<TorpControl> p_l_tc,
 
 TaskCoordinate::~TaskCoordinate()
 {
-    if (auditTrailLog.is_open())
-        auditTrailLog.close();
-}
 
-void TaskCoordinate::InitializeLogs()
-{
-    std::filesystem::create_directories("logs");
-
-    auditTrailLog.open("logs/auditTrailLog.txt", std::ios::out | std::ios::app);
-
-    auditTrailLog << left << setw(w) << "Start" << left << setw(w) << "End" << left << setw(w) << "Duration[ms]" << left << setw(w) << "TaskName"
-                  << left << setw(w) << "TaskID" << left << setw(w) << "CurrState" << left << setw(w) << "NextState" << endl;
 }
 
 int TaskCoordinate::Run()
@@ -65,14 +53,14 @@ int TaskCoordinate::Run()
             {
                 if (!controlBodyNoFindSunFlag)
                 {
-                    if ((*p_attc).GetFindingSunDoneFlag()) // if there is a flag for this???
+                    /*if ((*p_attc).GetFindingSunDoneFlag()) // if there is a flag for this???
                     {
                         if (!sensorsOnlyFlag)
                         {
                             // other flag functions in attitude control class
                             
                         }
-                    }
+                    }*/
                 }
             }
     }

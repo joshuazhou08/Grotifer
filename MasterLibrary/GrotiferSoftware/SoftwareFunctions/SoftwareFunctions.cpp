@@ -1,3 +1,5 @@
+#pragma once
+
 #include <unistd.h>
 #include <iostream>
 #include <string>
@@ -47,7 +49,7 @@ PIControl::PIControl(PIControlPara &pic)
     p_ki = pic.ki;
     p_hLim = pic.hLim;
     p_lLim = pic.lLim;
-}
+};
 
 PIControl::~PIControl() {};
 
