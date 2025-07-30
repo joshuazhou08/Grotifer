@@ -4,14 +4,22 @@
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
+#include <ios>
+#include <iomanip>
 
-TaskCoordinate::TaskCoordinate(std::shared_ptr<TorpControl> p_l_tc,
-                               std::shared_ptr<TorpControl> p_r_tc,
-                               std::unique_ptr<TorpMasterControl> p_tmc,
-                               std::unique_ptr<AttitudeControl> p_attc,
-                               ofstream auditTrailLog)
-    : BaseTask("TaskCoordinate", 3)
-{
+TaskCoordinate::TaskCoordinate(std::shared_ptr<TorpControl> l_tc,
+                               std::shared_ptr<TorpControl> r_tc,
+                               std::shared_ptr<TorpMasterControl> tmc,
+                               std::shared_ptr<AttitudeControl> attc)
+    : BaseTask("TaskCoordinate", 3),
+    p_l_tc(std::move(l_tc)),
+    p_r_tc(std::move(r_tc)),
+    p_tmc(std::move(tmc)),
+    p_attc(std::move(attc))
+
+{   
+    InitializeLogs();
+
     if (!auditTrailLog)
     {
         throw std::runtime_error("Failed to open one or more log files in Task Control.");
@@ -29,18 +37,34 @@ TaskCoordinate::TaskCoordinate(std::shared_ptr<TorpControl> p_l_tc,
 
 TaskCoordinate::~TaskCoordinate()
 {
+    if (auditTrailLog.is_open())
+        auditTrailLog.close();
+}
 
+void TaskCoordinate::InitializeLogs()
+{
+    std::filesystem::create_directories("logs");
+    auditTrailLog.open("logs/masterTorpLog.txt", std::ios::out | std::ios::app);
+
+    auditTrailLog << left << setw(w) << "Start" << left << setw(w) << "End" << left << setw(w) << "Duration[ms]" << left << setw(w) << "TaskName"
+                  << left << setw(w) << "TaskID" << left << setw(w) << "CurrState" << left << setw(w) << "NextState" << endl;
 }
 
 int TaskCoordinate::Run()
 {
+    if (!timeToRunFlag)
+    {
+        return -1;
+    }
+
     if (GetTimeNow() < nextTaskTime)
     {
-        return 0;
+        return 1;
     }
     
     timeStart = GetTimeNow();
     nextTaskTime = deltaTaskTime;
+    state = nextState;
 
     switch (state)
     {
@@ -51,18 +75,111 @@ int TaskCoordinate::Run()
             }
             else
             {
-                if (!controlBodyNoFindSunFlag)
+                if ((*p_attc).GetFindingSunDoneFlag()) // ****we need a flag and function for this
                 {
-                    /*if ((*p_attc).GetFindingSunDoneFlag()) // if there is a flag for this???
+                    if (!controlBodyOnlyFlag)
                     {
-                        if (!sensorsOnlyFlag)
+                        (*p_tmc).SetTimeToRunFlag(true);
+                        if (!(*p_tmc).GetFirstTimeRunFlag())
                         {
-                            // other flag functions in attitude control class
-                            
+                            nextState = DEPLOYING;
+                            (*p_l_tc).SetTimeToRunFlag(true);
+                            (*p_r_tc).SetTimeToRunFlag(true);
                         }
-                    }*/
+                            
+                    }
+                    else
+                    {
+                        nextState = MOVING;
+                        (*p_l_tc).SetTimeToRunFlag(false);
+                        (*p_r_tc).SetTimeToRunFlag(false);
+                        (*p_tmc).SetTimeToRunFlag(false);
+                    }
+                }
+
+                else
+                {
+                    nextState = INITIALIZING;
+                    (*p_l_tc).SetTimeToRunFlag(false);
+                    (*p_r_tc).SetTimeToRunFlag(false);
+                    (*p_tmc).SetTimeToRunFlag(false);
                 }
             }
+
+            break;
+            
+        case DEPLOYING:
+
+            if (!holdPosAfterDeployFlag)
+            {
+                if ((*p_tmc).GetReadyToDeploySensorsFlag())
+                {
+                    if (tStartDeploySensors <= 0)
+                    {
+                        tStartDeploySensors = GetTimeNow() + 10.0;
+                    }
+                    else
+                    {
+                        if (GetTimeNow() >= tStartDeploySensors)
+                        {
+                            (*p_tmc).SetDeployingFlag(true);
+                        }
+                        else
+                        {
+                            (*p_tmc).SetDeployingFlag(false);
+                        }
+                    }
+                }
+
+                if ((*p_tmc).GetDeployingDoneFlag())
+                {
+                    nextState = MOVING;
+                    (*p_attc).SetStartMovingFlag(true); // ** add this flag to attitude control
+                }
+
+                else (*p_attc).SetStartMovingFlag(false);
+            }
+
+            else (*p_attc).SetStartMovingFlag(false);
+
+            break;
+
+        case MOVING:
+            
+            if (controlBodyOnlyFlag)
+            {
+                (*p_l_tc).SetTimeToRunFlag(false);
+                (*p_r_tc).SetTimeToRunFlag(false);
+                (*p_tmc).SetTimeToRunFlag(false);
+            }
+
+            (*p_attc).SetStartMovingFlag(true);
+
+            if ((*p_attc).GetDoneMovingFlag()) // ** add this function/flag to attitude control
+            {
+                nextState = STOPPING;
+
+                (*p_tmc).SetRetractingFlag(true);
+            }
+            
+            break;
+
+        case STOPPING:
+            
+            if (controlBodyOnlyFlag)
+            {
+                (*p_l_tc).SetTimeToRunFlag(false);
+                (*p_r_tc).SetTimeToRunFlag(false);
+                (*p_tmc).SetTimeToRunFlag(false);
+            }
+
+            (*p_attc).SetStartMovingFlag(true);
+
+            break;
     }
+
+    timeEnd = GetTimeNow();
+    AuditTrailRecord();
+    return 1;
 
 }

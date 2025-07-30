@@ -28,6 +28,8 @@ protected:
     char* stateName;
     char* nextStateName;
 
+    bool timeToRunFlag = true;
+
     std::ofstream *auditTrailLog = NULL;
 
 public:
@@ -39,6 +41,8 @@ public:
     double duration, timeEnd, timeStart;
 
     void AuditTrailRecord();
+
+    void SetTimeToRunFlag(bool flagVal); // flag used in coordinate task
 
 };
 

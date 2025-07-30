@@ -34,3 +34,8 @@ void BaseTask::AuditTrailRecord() // Function to record the trail of the program
     * auditTrailLog << left << setw(w) << timeStart << left << setw(w) << timeEnd << left << setw(w) << duration*1e3 << left << setw(w) << taskName
     << left << setw(w) << taskID << left << setw(w) << stateName << left << setw(w) << nextStateName << endl;
 }
+
+void BaseTask::SetTimeToRunFlag(bool flagVal)
+{
+    timeToRunFlag = flagVal;
+}

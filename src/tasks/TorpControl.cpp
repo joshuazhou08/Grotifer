@@ -8,11 +8,14 @@
 #include <filesystem>
 
 TorpControl::TorpControl(homingProfilePara homingPara, 
-                        std::shared_ptr<PIControl> p_pi, 
-                        std::unique_ptr<MaxonMotor> p_mm, 
-                        std::unique_ptr<LJEncoder3Channels> p_ljEnc3C,
+                        std::shared_ptr<PIControl> pi, 
+                        std::shared_ptr<MaxonMotor> mm, 
+                        std::shared_ptr<LJEncoder3Channels> ljEnc3C,
                         double gearRatio)
-    : BaseTask("TorpControl", 1)
+    : BaseTask("TorpControl", 1),
+    p_pi(std::move(pi)),
+    p_mm(std::move(mm)),
+    p_ljEnc3C(std::move(ljEnc3C))
                                 
 {
     InitializeLogs();
@@ -54,14 +57,28 @@ void TorpControl::InitializeLogs()
 
 int TorpControl::Run()
 {
-    if (GetTimeNow() < nextTaskTime)
+    if (!timeToRunFlag)
     {
-        return 0;
+        (*p_mm).HaltMotion();
+        return -1;
     }
 
+    if (state == SYNCHRONIZING) goto syncExecution;
+
+    if (GetTimeNow() < nextTaskTime)
+    {
+        return 1;
+    }
+
+    
+
+    timeStart = GetTimeNow();
+    nextTaskTime += deltaTaskTime;
     time = GetTimeNow();
 
-    if (state == SYNCHRONIZING) goto syncExecution;
+    deltaT = time - preTime;
+    preTime = time;
+    state = nextState;
 
     switch (state)
     {

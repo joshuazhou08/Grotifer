@@ -27,6 +27,11 @@ public:
     ~AttitudeControl() override;
     int Run() override;
 
+    bool GetFindingSunDoneFlag() {return doneFindingSunFlag;}
+    void SetStartMovingFlag(bool flagVal) {startMovingFlag = flagVal;}
+    void SetDoneMovingFlag(bool flagVal) {doneMovingFlag = flagVal;}
+    bool GetDoneMovingFlag()  {return doneMovingFlag;}
+
 private:
     // Configs
     AttitudeConfig config;
@@ -57,6 +62,8 @@ private:
     // max accelerations for momentum wheels
     double maxAccCmdX, maxAccCmdY, maxAccCmdZ;
 
+    bool doneFindingSunFlag, startMovingFlag, doneMovingFlag;
+
     // for storing state to calculate angular velocity
     Matrix3d iniRotMat{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
     Matrix3d prevRotMat{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
@@ -78,9 +85,9 @@ class TorpControl : public BaseTask
 {
 public:
     TorpControl(homingProfilePara homingPara,
-                std::shared_ptr<PIControl> p_pi,
-                std::unique_ptr<MaxonMotor> p_mm,
-                std::unique_ptr<LJEncoder3Channels> p_ljEnc3C,
+                std::shared_ptr<PIControl> pi,
+                std::shared_ptr<MaxonMotor> mm,
+                std::shared_ptr<LJEncoder3Channels> ljEnc3C,
                 double gearRatio);
     ~TorpControl() override;
     int Run() override;
@@ -159,15 +166,13 @@ private:
     std::ofstream torpControlLog;
 
     // torp maxon motors
-    std::unique_ptr<MaxonMotor> p_mmL;
-    std::unique_ptr<MaxonMotor> p_mmR;
-    std::unique_ptr<MaxonMotor> p_mm;
+    std::shared_ptr<MaxonMotor> p_mm;
 
     // encoder
-    std::unique_ptr<LJEncoder3Channels> p_ljEnc3C;
+    std::shared_ptr<LJEncoder3Channels> p_ljEnc3C;
 
     // PI Control
-    std::unique_ptr<PIControl> p_pi;
+    std::shared_ptr<PIControl> p_pi;
 
 protected:
     // torp ang pos, prev ang pos, ang vel, motor pos, motor vel, pos error
@@ -206,12 +211,12 @@ class TorpMasterControl : public BaseTask
 {
 public: 
     TorpMasterControl(bool startDeployBySoftwareFlag, 
-                      std::shared_ptr<TorpControl> p_l_tc, 
-                      std::shared_ptr<TorpControl> p_r_tc,
-                      std::unique_ptr<StepperMotor> p_l_st1, 
-                      std::unique_ptr<StepperMotor> p_l_st2, 
-                      std::unique_ptr<StepperMotor> p_r_st1, 
-                      std::unique_ptr<StepperMotor> p_r_st2);
+                      std::shared_ptr<TorpControl> l_tc, 
+                      std::shared_ptr<TorpControl> r_tc,
+                      std::unique_ptr<StepperMotor> l_st1, 
+                      std::unique_ptr<StepperMotor> l_st2, 
+                      std::unique_ptr<StepperMotor> r_st1, 
+                      std::unique_ptr<StepperMotor> r_st2);
 
     ~TorpMasterControl() override;
     int Run() override;
@@ -223,6 +228,7 @@ public:
     bool GetDeployingDoneFlag() {return deployDoneFlag;}   // Function to get deploying done flag
     bool GetReTractingDoneFlag() {return retractDoneFlag;} // Function to get retracting done flag
     bool GetReadyToDeploySensorsFlag() {return readyToDeployFlag;}
+    bool GetFirstTimeRunFlag() {return firstTimeRunFlag;}
 
     void SetDeployingFlag(bool flagVal)
     {
@@ -248,6 +254,9 @@ public:
         (*p_tc).Run();
     }
 
+    // pointers for torp control tasks
+    std::shared_ptr<TorpControl> p_l_tc;
+    std::shared_ptr<TorpControl> p_r_tc;
 
 private:
     // config
@@ -267,9 +276,7 @@ private:
     void InitializeLogs();
     std::ofstream masterTorpLog;
 
-    // pointers for torp control tasks
-    std::shared_ptr<TorpControl> p_l_tc;
-    std::shared_ptr<TorpControl> p_r_tc;
+    
     
 
     // pointers for steppers
@@ -285,6 +292,7 @@ protected:
     bool deployBySoftwareFlag, deployStartFlag, retractStartFlag, doneHomingFlag, 
          deployDoneFlag, retractDoneFlag, readyToDeployFlag;
          
+    bool firstTimeRunFlag = true;
     bool softwareDeployFlag = true; // disable flag if no deployment desired
 
     // variables -- velocity magnitue [RPM], acc magnitude [RPM/s], time to acc [s], cruising time [s], 
@@ -309,9 +317,8 @@ class TaskCoordinate : public BaseTask
     public: 
         TaskCoordinate(std::shared_ptr<TorpControl> p_l_tc,
                        std::shared_ptr<TorpControl> p_r_tc,
-                       std::unique_ptr<TorpMasterControl> p_tmc,
-                       std::unique_ptr<AttitudeControl> p_attc,
-                       ofstream auditTrailLog);
+                       std::shared_ptr<TorpMasterControl> p_tmc,
+                       std::shared_ptr<AttitudeControl> p_attc);
 
         ~TaskCoordinate() override;
         int Run() override;
@@ -327,6 +334,14 @@ class TaskCoordinate : public BaseTask
         static const unsigned int MOVING = 2;
         static const unsigned int STOPPING = 3;
 
+        void InitializeLogs();
+        std::ofstream auditTrailLog;
+
+        std::shared_ptr<TorpControl>      p_l_tc;
+        std::shared_ptr<TorpControl>      p_r_tc;
+        std::shared_ptr<TorpMasterControl> p_tmc;
+        std::shared_ptr<AttitudeControl>   p_attc;
+
     protected:
         
         // flags
@@ -334,6 +349,6 @@ class TaskCoordinate : public BaseTask
 
         // variables
         double timeStart;
+        double tStartDeploySensors = 0;
 
-        AttitudeControl *p_attc = nullptr;
 };

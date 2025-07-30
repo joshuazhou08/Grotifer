@@ -6,13 +6,19 @@
 #include <filesystem>
 
 TorpMasterControl::TorpMasterControl(bool startDeployBySoftwareFlag, 
-                                     std::shared_ptr<TorpControl> p_l_tc, 
-                                     std::shared_ptr<TorpControl> p_r_tc,
-                                     std::unique_ptr<StepperMotor> p_l_st1, 
-                                     std::unique_ptr<StepperMotor> p_l_st2, 
-                                     std::unique_ptr<StepperMotor> p_r_st1, 
-                                     std::unique_ptr<StepperMotor> p_r_st2)
-    : BaseTask("TorpMasterControl", 2)
+                                     std::shared_ptr<TorpControl> l_tc, 
+                                     std::shared_ptr<TorpControl> r_tc,
+                                     std::unique_ptr<StepperMotor> l_st1, 
+                                     std::unique_ptr<StepperMotor> l_st2, 
+                                     std::unique_ptr<StepperMotor> r_st1, 
+                                     std::unique_ptr<StepperMotor> r_st2)
+    : BaseTask("TorpMasterControl", 2),
+    p_l_tc(std::move(l_tc)),
+    p_r_tc(std::move(r_tc)),
+    p_l_st1(std::move(l_st1)),
+    p_l_st2(std::move(l_st2)),
+    p_r_st1(std::move(r_st1)),
+    p_r_st2(std::move(r_st2))
 {
     InitializeLogs();
     if (!masterTorpLog)
@@ -58,9 +64,21 @@ void TorpMasterControl::InitializeLogs()
 
 int TorpMasterControl::Run()
 {
+    if (!timeToRunFlag)
+    {
+        return -1;
+    }
+
+    if (firstTimeRunFlag)
+    {
+        preTime = GetTimeNow();
+        firstTimeRunFlag = false;
+        return -1;
+    }
+    
     if (GetTimeNow() < nextTaskTime)
     {
-        return 0;
+        return 1;
     }
 
     preTime = GetTimeNow();
