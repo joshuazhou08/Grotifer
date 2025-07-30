@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <cstdint>
 #include "Definitions.h"
 
 using namespace std;
@@ -211,4 +212,27 @@ protected:
     uint32_t p_maxSpeed;        // Maximum speed, [microstep/10000sec]
     uint32_t p_startSpeed;      // Starting speed, [microstep/10000sec]
     uint8_t p_maxCurr = 200;    // Current limit, [mA]
+};
+
+class JrkController {
+public:
+    JrkController(const char * device, uint32_t baudRate = 9600);
+    ~JrkController();
+
+    bool isOpen() const {return fd >= 0;}
+    void closePort();
+    int getFd() const {return fd; }
+
+    int setTarget(uint16_t target);
+    int getTarget();
+    int getFeedback();
+
+    int openSerialPort(const char * device, uint32_t baudRate);
+
+private:
+    int fd;
+    int writePort(uint8_t * buffer, size_t size);
+    ssize_t readPort(uint8_t * buffer, size_t size);
+    int getVariable(uint8_t offset, uint8_t * buffer, uint8_t length);
+
 };

@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <cstdio>
 #include "Definitions.h"
 
 #include "Actuators.hpp"
@@ -795,4 +796,176 @@ void StepperMotor::RunToTargetPosition(int32_t position)
 {
     ExitSafeStart();
     SetTargetPosition(position);
+}
+
+// ==== Jrk Driver for Fans === //
+
+int JrkController::openSerialPort(const char * device, uint32_t baudRate)
+{
+    fd = open(device, O_RDWR | O_NOCTTY);
+    if (fd == -1)
+    {
+        perror(device);
+        return -1;
+    }
+
+    // flush previously read/written bytes
+    int result = tcflush(fd, TCIOFLUSH);
+    if (result) {
+        perror("tcflush failed");
+    }
+
+    // get current serial port config
+    struct termios options;
+    if (tcgetattr(fd, &options))
+    {
+        perror("tcgetattr failed");
+        close(fd);
+        return -1;
+    }
+
+    // turn off options that could interfere with raw byte transfer
+    options.c_iflag &= ~(INLCR | IGNCR | ICRNL | IXON | IXOFF);
+    options.c_oflag &= ~(ONLCR | OCRNL);
+    options.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+
+    // timeouts: calls to read() return when 1 byte available or 100ms passes
+    options.c_cc[VTIME] = 1;
+    options.c_cc[VMIN] = 0;
+
+    // set baud rate
+    speed_t speed = B9600;
+    switch(baudRate) {
+        case 4800: cfsetospeed(&options, B4800); break;
+        case 9600: cfsetospeed(&options, B9600); break;
+        case 19200: cfsetospeed(&options, B19200); break;
+        case 38400: cfsetospeed(&options, B38400); break;
+        case 115200: cfsetospeed(&options, B115200); break;
+        default:
+            fprintf(stderr, "baud rate not supported, using 9600.\n");
+            cfsetospeed(&options, B9600);
+            break;
+    }
+    cfsetispeed(&options, cfgetospeed(&options));
+
+    result = tcsetattr(fd, TCSANOW, &options);
+    if (result) {
+        perror("tcsetattr failed.");
+        close(fd);
+        return -1;
+    }
+
+    return fd;
+
+}
+
+JrkController::JrkController(const char * device, uint32_t baudRate)
+{
+    fd = openSerialPort(device, baudRate);
+}
+
+JrkController::~JrkController() 
+{
+    if (fd >= 0) close(fd);
+}
+
+
+void JrkController::closePort()
+{
+    if (fd >= 0)
+    {
+        close(fd);
+        fd = -1;
+    }
+}
+
+// write bytes to serial port
+int JrkController::writePort(uint8_t * buffer, size_t size)
+{
+    ssize_t result = write(fd, buffer, size);
+    if (result != (ssize_t)size)
+    {
+        perror("failed to write to port");
+        return -1;
+    }
+    return 0;
+}
+
+// read bytes from serial port
+// returns # bytes successfully read to buffer after all desired bytes read, or -1 if timeout/error
+
+ssize_t JrkController::readPort(uint8_t * buffer, size_t size)
+{
+    size_t received = 0;
+    while (received < size)
+    {
+        ssize_t r = read(fd, buffer + received, size - received);
+        if (r < 0)
+        {
+            perror("failed to read from port");
+            return -1;
+        }
+        if (r == 0) break; // timeout
+        received += r;
+    }
+    return received;
+}
+
+// for feedback control modes -- target = 0 - 4095
+/* int JrkController::setTarget(uint16_t target)
+{
+    if (target > 4095) target = 4095;
+    uint8_t command[2] = {
+        static_cast<uint8_t>(0xC0 + (target & 0x1F)),
+        static_cast<uint8_t>((target >> 5) & 0x7F)
+    };
+    return writePort(command, sizeof(command));
+}*/ 
+
+// for open loop control mode -- target = 1448 - 2648
+int JrkController::setTarget(uint16_t target)
+{
+    if (target < 1448) target = 1448;
+    if (target > 2648) target = 2648;
+    uint8_t command[2] = {
+        static_cast<uint8_t>(0xC0 + (target & 0x1F)),
+        static_cast<uint8_t>((target >> 5) & 0x7F)
+    };
+    return writePort(command, sizeof(command));
+}
+
+// gets variables from Jrk without clearing them
+int JrkController::getVariable(uint8_t offset, uint8_t * buffer, uint8_t length)
+{
+    uint8_t command[] = { 0xE5, offset, length };
+    int result = writePort(command, sizeof(command));
+    if (result) return -1;
+
+    ssize_t received = readPort(buffer, length);
+    if (received < 0) return -1;
+    if (received != length) 
+    {
+        fprintf(stderr, "read timeout; expected %u bytes, got %zu\n", length, received);
+        return -1;
+    }
+    return 0;
+}
+
+// get target variable from Jrk
+int JrkController::getTarget()
+{
+    uint8_t buffer[2];
+    int result = getVariable(0x02, buffer, sizeof(buffer));
+    if (result) return -1;
+    return buffer[0] + 256 * buffer[1];
+}
+
+// get feedback variable from Jrk
+int JrkController::getFeedback()
+{
+    //0x04 is offset of feedback variable, variable is 2 bytes long
+    uint8_t buffer[2];
+    int result = getVariable(0x04, buffer, sizeof(buffer));
+    if (result) return -1;
+    return buffer[0] + 256 * buffer[1];
 }

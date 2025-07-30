@@ -44,7 +44,9 @@ int main()
     Devices devices;
 
     if (!devices.initLabJack() || !devices.initInclinometer() ||
-        !devices.initSunSensor() || !devices.initMaxonMotors())
+        !devices.initSunSensor() || !devices.initMaxonMotors() || 
+        !devices.initUSDigiEnc() || !devices.initSteppers() ||
+        !devices.initJrkController())
     {
         return -1;
     }
@@ -60,7 +62,7 @@ int main()
         devices.releaseInclinometer());
 
     // Initialize Task List
-    constexpr int NUM_TASKS = 1;
+    constexpr int NUM_TASKS = 3;
 
     BaseTask *taskTable[NUM_TASKS] = {
         &attitudeControl};
@@ -81,4 +83,35 @@ int main()
         i = (i + 1) % NUM_TASKS;
     }
     setNonBlockingInput(false); // Enable non-blocking input for smooth kill signal
+
+    auto JrkX = devices.releaseJrkX();
+    auto JrkZ = devices.releaseJrkZ();
+    if (!JrkX || !JrkX->isOpen() ||
+        !JrkZ || !JrkZ->isOpen())
+    {
+        std::cerr << "Failed to retrieve the open JrkControllers\n";
+        return 1;
+    }
+
+
+    while (true) {
+        int targetX;
+        int targetZ;
+        std::cout << "Enter X and Z motor target speed or -1 to quit: ";
+        std::cin >> targetX >> targetZ;
+
+        if(targetX == -1 || targetZ == -1)
+        {
+            std::cout << "stopping motors, exiting...\n";
+            JrkX->setTarget(2048);
+            JrkZ->setTarget(2048);
+            break;
+        }
+
+        std::cout << "setting X motor to " << targetX << "and Z motor to " << targetZ << "\n";
+        JrkX->setTarget(targetX);
+        JrkZ->setTarget(targetZ);
+    }
+
+    return 0;
 }

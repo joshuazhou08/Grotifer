@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include "Devices.hpp"
+#include "Actuators.hpp"
 #include "GrotiferMaster.hpp"
 #include <cstdlib>
 
@@ -129,7 +130,6 @@ bool Devices::initMaxonMotors()
 
 bool Devices::initUSDigiEnc()
 {
-    // ************ FIGURE OUT INITIALIZATION STUFF *************************
     p_lgEnc3C_r = std::make_unique<LJEncoder3Channels>(*p_grotiferLJU6, 400, 1);
     p_lgEnc3C_l = std::make_unique<LJEncoder3Channels>(*p_grotiferLJU6, 400, 2);
 };
@@ -171,6 +171,39 @@ bool Devices::initSteppers()
     p_r_st1 = std::make_unique<StepperMotor>(rightStepper1Para);
     p_r_st2 = std::make_unique<StepperMotor>(rightStepper2Para);
     
+}
+
+bool Devices::initJrkController()
+{
+   p_JrkX = std::make_unique<JrkController>(JRK1_SERIAL_PORT, 9600);
+   p_JrkZ = std::make_unique<JrkController>(JRK2_SERIAL_PORT, 9600);
+
+   bool okX = p_JrkX && p_JrkX->getFd() >= 0;
+   bool okZ = p_JrkZ && p_JrkZ->getFd() >= 0;
+
+   if (!okX) { std::cerr << "Failed to open Jrk X\n"; return false; }
+   if (!okZ) { std::cerr << "Failed to open Jrk Z\n"; return false; }
+
+   std::cout << "Jrk Controllers opened successfully!\n";
+   return true;
+}
+
+std::unique_ptr<JrkController> Devices::releaseJrkX()
+{
+    if (!p_JrkX)
+    {
+        std::cerr << "Jrk Controller has not been initialized!" << std::endl;
+    }
+    return std::move(p_JrkX);
+}
+
+std::unique_ptr<JrkController> Devices::releaseJrkZ()
+{
+    if (!p_JrkZ)
+    {
+        std::cerr << "Jrk Controller has not been initialized!" << std::endl;
+    }
+    return std::move(p_JrkZ);
 }
 
 // Ownership transfer functions
@@ -246,7 +279,7 @@ std::unique_ptr<ModbusSunSensor> Devices::releaseSunSensor()
     return std::move(p_sunSensor);
 }
 
-std::unique_ptr<LJEncoder3Channels> Devices::releaseEncoder()
+std::shared_ptr<LJEncoder3Channels> Devices::releaseEncoder()
 {
     if (!p_lgEnc3C)
     {
@@ -290,3 +323,5 @@ std::unique_ptr<StepperMotor> Devices::releaseRightStepper2()
     }
     return std::move(p_r_st2);
 }
+
+

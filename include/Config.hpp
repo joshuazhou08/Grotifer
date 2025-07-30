@@ -240,7 +240,3 @@ inline stepperPara rightStepper2Params()
     step.maxSpeed = TorpConfig::stepperSpeed;
     step.startSpeed = TorpConfig::stepperSpeed;
 }
-
-// encoder?? 
-
-    
