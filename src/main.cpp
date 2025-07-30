@@ -59,7 +59,9 @@ int main()
         devices.releaseMMY(),
         devices.releaseMMZ(),
         devices.releaseSunSensor(),
-        devices.releaseInclinometer());
+        devices.releaseInclinometer(),
+        devices.releaseJrkX(),
+        devices.releaseJrkZ());
 
     // Initialize Task List
     constexpr int NUM_TASKS = 3;

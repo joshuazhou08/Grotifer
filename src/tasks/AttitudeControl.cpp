@@ -11,13 +11,17 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
                                  std::unique_ptr<MaxonMotor> mmY,
                                  std::unique_ptr<MaxonMotor> mmZ,
                                  std::unique_ptr<ModbusSunSensor> sunSensor,
-                                 std::unique_ptr<LabJackInclinometer> inclinometer)
+                                 std::unique_ptr<LabJackInclinometer> inclinometer,
+                                 std::unique_ptr<JrkController>fanX,
+                                 std::unique_ptr<JrkController>fanZ)
     : BaseTask("AttitudeControl", 0),
       p_mmX(std::move(mmX)),
       p_mmY(std::move(mmY)),
       p_mmZ(std::move(mmZ)),
       p_sunSensor(std::move(sunSensor)),
-      p_inclinometer(std::move(inclinometer))
+      p_inclinometer(std::move(inclinometer)), 
+      p_fanX(std::move(fanX)),
+      p_fanZ(std::move(fanZ))
 {
     InitializeLogs();
 
@@ -168,6 +172,25 @@ int AttitudeControl::Run()
         preTime = time;
     }
     }
+
+
+    // ************* PROPOSED FAN IMPLEMENTATION *************** //
+
+    /* case ANY THAT HAVE MOVEMENT OF MOM WHEELS:
+
+        // function to determine how fast to spin the fans by how fast the wheel is going
+        int fanSpeedX = fanSpeedforAngularRate(XmomentumWheelSpeed);
+        int fanSpeedZ = fanSpeedforAngularRate(ZmomentumWheelSpeed);
+
+        p_fanX->setTarget(fanspeedX);
+        p_fanZ->setTarget(fanspeedZ);
+        
+        if (angularRateBelowTarget()) // create function that checks wheel speed against target
+                                      // threshold
+        {
+            p_fanX->setTarget(2048) // stop
+            p_fanZ->setTarget(2048) // stop
+        }*/
 
     // update
     state = nextState;

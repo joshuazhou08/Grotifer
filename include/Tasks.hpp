@@ -22,7 +22,9 @@ public:
                     std::unique_ptr<MaxonMotor> mmY,
                     std::unique_ptr<MaxonMotor> mmZ,
                     std::unique_ptr<ModbusSunSensor> sunSensor,
-                    std::unique_ptr<LabJackInclinometer> inclinometer);
+                    std::unique_ptr<LabJackInclinometer> inclinometer,
+                    std::unique_ptr<JrkController>fanX,
+                    std::unique_ptr<JrkController>fanZ);
 
     ~AttitudeControl() override;
     int Run() override;
@@ -58,6 +60,10 @@ private:
     // sun sensors
     std::unique_ptr<ModbusSunSensor> p_sunSensor;
     std::unique_ptr<LabJackInclinometer> p_inclinometer;
+
+    // fan motors
+    std::unique_ptr<JrkController> p_fanX;
+    std::unique_ptr<JrkController> p_fanZ;
 
     // max accelerations for momentum wheels
     double maxAccCmdX, maxAccCmdY, maxAccCmdZ;

@@ -63,7 +63,6 @@ int TaskCoordinate::Run()
     }
     
     timeStart = GetTimeNow();
-    nextTaskTime = deltaTaskTime;
     state = nextState;
 
     switch (state)
@@ -178,8 +177,35 @@ int TaskCoordinate::Run()
             break;
     }
 
+    state = nextState;
+    std::string nextStateString;
+    if (nextState != state)
+    {
+        switch (nextState)
+        {
+        case INITIALIZING:
+        {
+            nextStateString = "Deploying";
+        }
+        case DEPLOYING:
+        {
+            nextStateString = "Moving";
+        }
+        case MOVING:
+        {
+            nextStateString = "Stopping";
+        }
+        case STOPPING:
+        {
+            nextStateString = "Stopping";
+        }
+        }
+        std::cout << "[Task Coordinate Task] Switching to state: " << nextStateString << std::endl;
+        
+    }
+    nextTaskTime += deltaTaskTime;
     timeEnd = GetTimeNow();
     AuditTrailRecord();
-    return 1;
+    return 0;
 
 }
