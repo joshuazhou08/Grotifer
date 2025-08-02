@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GrotiferMaster.hpp"
+#include "Logger.hpp"
 struct AttitudeConfig
 {
     static inline constexpr double deltaTaskTime = 75e-3;
@@ -26,6 +27,9 @@ struct AttitudeConfig
 
     // --- Flags For Configuring Behavior --- //
     bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
+    
+    // --- Logging Configuration --- //
+    Logger::Level logLevel = Logger::Level::DEBUG; 
 
     // --- Angular velocity loop gain constants --- //
     double xVelocityK_p = 0.175;

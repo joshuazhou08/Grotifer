@@ -1,5 +1,6 @@
 #include "Tasks.hpp"
 #include "Config.hpp"
+#include "Logger.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
@@ -124,7 +125,7 @@ int AttitudeControl::Run()
     state = nextState;
     stateName = nextStateName;
 
-    std::cout << stateName << std::endl;
+    Logger::info("State: ", stateName);
 
     switch (state)
     {
@@ -137,7 +138,7 @@ int AttitudeControl::Run()
             preTimeIni = GetTimeNow();
             nextState = INITIALIZING_MOTION;
             nextStateName = "Initializing Motion";
-            std::cout << "[Attitude Control] Finished Intializing. Going into initial kick." << std::endl;
+            Logger::info("[Attitude Control] Finished Intializing. Going into initial kick.");
         }
         else
         {
@@ -146,7 +147,7 @@ int AttitudeControl::Run()
             preTimeDetumbling = GetTimeNow();
             nextState = DETERMINING_ATTITUDE;
             nextStateName = "Determining Attitude";
-            std::cout << "[Attitude Control] Finished Intializing. Going into detumble." << std::endl;
+            Logger::info("[Attitude Control] Finished Intializing. Going into detumble.");
         }
 
         break;
@@ -159,7 +160,7 @@ int AttitudeControl::Run()
         int sunInfo;
         if (!(*p_sunSensor).GetAngles(thzSun, thySun, sunInfo))
         {
-            cout << "Fail to read Sun Sensor!" << endl;
+            Logger::error("Fail to read Sun Sensor!");
         }
 
         thySun = Deg2Rad(thySun); // Get Y-angle from Sun Sensor
@@ -167,7 +168,7 @@ int AttitudeControl::Run()
 
         if (sunInfo != 0)
         {
-            cout << "Sun Message: " << (*p_sunSensor).GetAddMessage(sunInfo) << endl;
+            Logger::info("Sun Message: ", (*p_sunSensor).GetAddMessage(sunInfo));
         }
 
         // Read the Inclinometer
@@ -178,7 +179,7 @@ int AttitudeControl::Run()
 
         // Calculating the attitude
         solRotMatBackward = BackwardSol::AlgebraicSolutionMatrix(thxIncl, thzIncl, thySun, thzSun);
-        std::cout << "[DEBUG] Orientation Matrix Calculated" << std::endl;
+        Logger::debug("[DEBUG] Orientation Matrix Calculated");
 
         // Get the axes
         Vector3d bodyX, bodyY, bodyZ;
@@ -189,7 +190,7 @@ int AttitudeControl::Run()
         // Calculate Euler Angles
         double thxEuler, thyEuler, thzEuler;
         BackwardSol::GetEulerFromRot(solRotMatBackward, &thxEuler, &thyEuler, &thzEuler);
-        std::cout << "[DEBUG] Euler Angles Calculated" << std::endl;
+        Logger::debug("[DEBUG] Euler Angles Calculated");
 
         double time = GetTimeNow(); // Get the current time
 
@@ -211,7 +212,7 @@ int AttitudeControl::Run()
         }
 
         angularVelocityVec = emaFilter3d(config.fc, time - preTime, angularVelocityVec, preAngularVelocityVec); // Use Exponential-moving-average filter
-        std::cout << "[DEBUG] Angular Velocity Vector Calculated" << std::endl;
+        Logger::debug("[DEBUG] Angular Velocity Vector Calculated");
 
         // Log the data
         angularVelLog << left << setw(w) << GetTimeNow() << left << setw(w) << angularVelocityVec(0)
@@ -233,7 +234,7 @@ int AttitudeControl::Run()
                   << left << setw(w) << Rad2Deg(thySun) << left << setw(w) << Rad2Deg(thzSun)
                   << left << setw(w) << Rad2Deg(thxEuler) << left << setw(w) << Rad2Deg(thyEuler) << left << setw(w) << Rad2Deg(thzEuler) << endl;
 
-        std::cout << "[DEBUG] Attitude Data Logged" << std::endl;
+        Logger::debug("[DEBUG] Attitude Data Logged");
 
         // Update
         preAngularVelocityVec = angularVelocityVec;
@@ -256,7 +257,7 @@ int AttitudeControl::Run()
             {
                 holdingPosition.setIdentity();
                 holdingPositionSet = true;
-                cout << "holding position: " << holdingPosition << endl;
+                Logger::info("holding position: ", holdingPosition);
                 preTimeHoldingPos = time;
             }
             nextStateName = "Holding Position";
@@ -282,7 +283,7 @@ int AttitudeControl::Run()
         if (time + preTimeIni >= iniKickEndTime * 2)
         {
             iniMotionDone = true;
-            cout << "[Attitude Control] Initial Kick Done" << endl;
+            Logger::info("[Attitude Control] Initial Kick Done");
             detumblingEndTime = GetTimeNow() + config.detumblingMaxDuration;
             preTimeDetumbling = GetTimeNow();
         }
@@ -312,7 +313,7 @@ int AttitudeControl::Run()
         {
             detumblingDone = true;
 
-            cout << "[Attitude Control] Detumbling Done" << endl;
+            Logger::info("[Attitude Control] Detumbling Done");
         }
 
         nextState = DETERMINING_ATTITUDE;
@@ -389,7 +390,7 @@ bool AttitudeControl::moveXMomentumWheelWithTorque(double torque, double deltaT,
     *velCmdVal = velCmd;
 
     xMomentumWheelVel = velCmd;
-    std::cout << "[DEBUG] Moving X" << std::endl;
+    Logger::debug("[DEBUG] Moving X");
     return saturateXMomtWheelFlag;
 }
 
@@ -423,7 +424,7 @@ bool AttitudeControl::moveYMomentumWheelWithTorque(double torque, double deltaT,
     *velCmdVal = velCmd;
 
     yMomentumWheelVel = velCmd;
-    std::cout << "[DEBUG] Moving Y" << std::endl;
+    Logger::debug("[DEBUG] Moving Y");
 
     return saturateYMomtWheelFlag;
 }
@@ -455,13 +456,13 @@ bool AttitudeControl::moveZMomentumWheelWithTorque(double torque, double deltaT,
         velCmd = -config.maxVelZ;
     }
 
-    std::cout << "[DEBUG] Giving Z Wheel a Velocity Command" << std::endl;
+    Logger::debug("[DEBUG] Giving Z Wheel a Velocity Command");
 
     (*p_mmZ).RunWithVelocity(velCmd);
     *torqueCmdVal = torqueCmd;
     *velCmdVal = velCmd;
 
-    std::cout << "[DEBUG] Z Velocity Successfully Commanded" << std::endl;
+    Logger::debug("[DEBUG] Z Velocity Successfully Commanded");
 
     zMomentumWheelVel = velCmd;
 
@@ -473,16 +474,16 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     double torqueCmdX, torqueCmdY, torqueCmdZ;
     double velCmdX, velCmdY, velCmdZ;
 
-    std::cout << "[DEBUG] Applying torque: " << torque << std::endl;
+    Logger::debug("[DEBUG] Applying torque: ", torque);
 
     if (moveXMomentumWheelWithTorque(torque(0), deltaT, &torqueCmdX, &velCmdX))
-        cout << "Saturate X Momentum Wheel" << endl;
+        Logger::warning("Saturate X Momentum Wheel");
     if (moveYMomentumWheelWithTorque(torque(1), deltaT, &torqueCmdY, &velCmdY))
-        cout << "Saturate Y Momentum Wheel" << endl;
+        Logger::warning("Saturate Y Momentum Wheel");
     if (moveZMomentumWheelWithTorque(torque(2), deltaT, &torqueCmdX, &velCmdZ))
-        cout << "Saturate Z Momentum Wheel" << endl;
+        Logger::warning("Saturate Z Momentum Wheel");
 
-    std::cout << "[DEBUG] Successfully applied torque" << std::endl;
+    Logger::debug("[DEBUG] Successfully applied torque");
 
     // Get the data
     xMomentumWheelVel = (*p_mmX).GetVelocityIs();
@@ -492,7 +493,7 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     momentumWheelsLog << left << setw(w) << GetTimeNow() << left << setw(w) << torqueCmdX << left << setw(w) << velCmdX << left << setw(w) << xMomentumWheelVel
                       << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel
                       << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << zMomentumWheelVel << endl;
-    std::cout << "[DEBUG] Momentum Wheel Data Logged" << std::endl;
+    Logger::debug("[DEBUG] Momentum Wheel Data Logged");
 }
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)

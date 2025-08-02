@@ -2,6 +2,7 @@
 #include "Tasks.hpp"
 #include "Config.hpp"
 #include "Devices.hpp"
+#include "Logger.hpp"
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -40,6 +41,9 @@ bool wasEKeyPressed()
 
 int main()
 {
+    // Initialize the logger
+    Logger::init("logs/debug.log", Logger::Level::INFO);
+    
     // Initialize all the devices
     Devices devices;
 
@@ -74,11 +78,14 @@ int main()
     {
         if (wasEKeyPressed())
         {
-            std::cout << "[KILLING] Kill signal detected (E pressed).\n";
+            Logger::info("[KILLING] Kill signal detected (E pressed).");
             break;
         }
         taskTable[i]->Run();
         i = (i + 1) % NUM_TASKS;
     }
     setNonBlockingInput(false); // Enable non-blocking input for smooth kill signal
+    
+    // Cleanup logger
+    Logger::cleanup();
 }
