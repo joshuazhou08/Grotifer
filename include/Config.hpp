@@ -4,71 +4,70 @@
 #include "Logger.hpp"
 struct AttitudeConfig
 {
+
+    // Initial Kick Paramters
+    static inline constexpr double iniKickDuration = 250.0e-3;
+    static inline const Vector3d iniTorqueVec{0.0, 0.0, 0.1};
+    
+
+    // Detumbling Parameters
+    static inline constexpr double detumblingMaxDuration = 10;
+
+    // --- Flags For Configuring Behavior --- //
+    static inline constexpr bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
+
     static inline constexpr double deltaTaskTime = 75e-3;
 
     // --- Momentum Wheels Configurations --- //
-    double momOfInertiaX = 3.6383e-5; // Moment of inertia for X, [kg.m^2]
-    int16_t maxVelX = 7500;           // Maximum speed for X-momentum wheel, [rpm]
+    static inline constexpr double momOfInertiaX = 3.6383e-5; // Moment of inertia for X, [kg.m^2]
+    static inline constexpr int16_t maxVelX = 7500;           // Maximum speed for X-momentum wheel, [rpm]
 
-    double momOfInertiaY = 3.6383e-5; // Moment of inertia for Y, [kg.m^2]
-    int16_t maxVelY = 7500;           // Maximum speed for Y-momentum wheel, [rpm]
+    static inline constexpr double momOfInertiaY = 3.6383e-5; // Moment of inertia for Y, [kg.m^2]
+    static inline constexpr int16_t maxVelY = 7500;           // Maximum speed for Y-momentum wheel, [rpm]
 
-    double momOfInertiaZ = 3.6383e-5; // Moment of inertia for Z, [kg.m^2]
-    int16_t maxVelZ = 7500;           // Maximum speed for Z-momentum wheel, [rpm]
+    static inline constexpr double momOfInertiaZ = 3.6383e-5; // Moment of inertia for Z, [kg.m^2]
+    static inline constexpr int16_t maxVelZ = 7500;           // Maximum speed for Z-momentum wheel, [rpm]
 
-    double fc = 4.0; // Cut off frequency for angular velocity filtering
-
-    // Initial Kick Paramters
-    double iniKickDuration = 250.0e-3;
-    Vector3d iniTorqueVec{{0.0, 0.0, 0.1}};
-
-    // Detumbling Parameters
-    double detumblingMaxDuration = 10;
-
-    // --- Flags For Configuring Behavior --- //
-    bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
+    static inline constexpr double fc = 4.0; // Cut off frequency for angular velocity filtering
     
-    // --- Logging Configuration --- //
-    Logger::Level logLevel = Logger::Level::DEBUG; 
-
     // --- Angular velocity loop gain constants --- //
-    double xVelocityK_p = 0.175;
-    double xVelocityK_i = 1.5e-3 * xVelocityK_p;
-    double xVelocityhLim = 0.5;
-    double xVelocitylLim = -0.5;
-    double xVelocityK_d = 0;
+    static inline constexpr double xVelocityK_p = 0.175;
+    static inline constexpr double xVelocityK_i = 1.5e-3 * xVelocityK_p;
+    static inline constexpr double xVelocityhLim = 0.5;
+    static inline constexpr double xVelocitylLim = -0.5;
+    static inline constexpr double xVelocityK_d = 0;
 
-    double yVelocityK_p = 0.2;
-    double yVelocityK_i = 1.5e-3 * yVelocityK_p;
-    double yVelocityhLim = 1.0;
-    double yVelocitylLim = -1.0;
-    double yVelocityK_d = 0;
+    static inline constexpr double yVelocityK_p = 0.2;
+    static inline constexpr double yVelocityK_i = 1.5e-3 * yVelocityK_p;
+    static inline constexpr double yVelocityhLim = 1.0;
+    static inline constexpr double yVelocitylLim = -1.0;
+    static inline constexpr double yVelocityK_d = 0;
 
-    double zVelocityK_p = 0.2;
-    double zVelocityK_i = 1.5e-3 * zVelocityK_p;
-    double zVelocityhLim = 0.5;
-    double zVelocitylLim = -0.5;
-    double zVelocityK_d = 0;
+    static inline constexpr double zVelocityK_p = 0.2;
+    static inline constexpr double zVelocityK_i = 1.5e-3 * zVelocityK_p;
+    static inline constexpr double zVelocityhLim = 0.5;
+    static inline constexpr double zVelocitylLim = -0.5;
+    static inline constexpr double zVelocityK_d = 0;
 
     // --- Position loop gain constants --- //
 
-    double xPositionK_p = 0.1;
-    double xPositionK_i = 0 * xPositionK_p;
-    double xPositionhLim = 0.5;
-    double xPositionlLim = -0.5;
-    double xPositionK_d = 0.1;
+    static inline constexpr double xPositionK_p = 0.1;
+    static inline constexpr double xPositionK_i = 0 * xPositionK_p;
+    static inline constexpr double xPositionhLim = 0.5;
+    static inline constexpr double xPositionlLim = -0.5;
+    static inline constexpr double xPositionK_d = 0.1;
 
-    double yPositionK_p = 0.1;
-    double yPositionK_i = 0 * yPositionK_p;
-    double yPositionhLim = 1.0;
-    double yPositionlLim = -1.0;
-    double yPositionK_d = 0.1;
+    static inline constexpr double yPositionK_p = 0.1;
+    static inline constexpr double yPositionK_i = 0 * yPositionK_p;
+    static inline constexpr double yPositionhLim = 1.0;
+    static inline constexpr double yPositionlLim = -1.0;
+    static inline constexpr double yPositionK_d = 0.1;
 
-    double zPositionK_p = 0.05;
-    double zPositionK_i = 0 * zPositionK_p;
-    double zPositionhLim = 0.5;
-    double zPositionlLim = -0.5;
-    double zPositionK_d = 0.1;
+    static inline constexpr double zPositionK_p = 0.05;
+    static inline constexpr double zPositionK_i = 0 * zPositionK_p;
+    static inline constexpr double zPositionhLim = 0.5;
+    static inline constexpr double zPositionlLim = -0.5;
+    static inline constexpr double zPositionK_d = 0.1;
 };
 // --- Maxon motor factory functions ---
 inline maxon makeXMotor()
