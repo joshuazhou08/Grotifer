@@ -22,7 +22,43 @@ namespace Logger
         CRITICAL = 4
     };
 
-    // Global logger state
+    // Logger class for named instances
+    class LoggerInstance
+    {
+    public:
+        LoggerInstance(const std::string& name);
+        
+        // Main logging function
+        void log(Level level, const std::string &message);
+        
+        // Convenience functions
+        void debug(const std::string &message);
+        void info(const std::string &message);
+        void warning(const std::string &message);
+        void error(const std::string &message);
+        void critical(const std::string &message);
+        
+        // Variadic convenience functions
+        template <typename... Args>
+        void debug(Args &&...args);
+        
+        template <typename... Args>
+        void info(Args &&...args);
+        
+        template <typename... Args>
+        void warning(Args &&...args);
+        
+        template <typename... Args>
+        void error(Args &&...args);
+        
+        template <typename... Args>
+        void critical(Args &&...args);
+        
+    private:
+        std::string name;
+    };
+
+    // Global logger state (for backward compatibility)
     extern Level currentLevel;
     extern std::ofstream logFile;
     extern std::mutex logMutex;
@@ -41,17 +77,17 @@ namespace Logger
     std::string getLevelName(Level level);
     std::string getCurrentTimestamp();
 
-    // Main logging function
+    // Main logging function (global)
     void log(Level level, const std::string &message);
 
-    // Convenience functions
+    // Convenience functions (global)
     void debug(const std::string &message);
     void info(const std::string &message);
     void warning(const std::string &message);
     void error(const std::string &message);
     void critical(const std::string &message);
 
-    // Variadic convenience functions
+    // Variadic convenience functions (global)
     template <typename... Args>
     void debug(Args &&...args);
 
@@ -255,6 +291,111 @@ namespace Logger
         {
             logFile.close();
         }
+    }
+
+    // LoggerInstance implementation
+    inline LoggerInstance::LoggerInstance(const std::string& name) : name(name) {}
+
+    inline void LoggerInstance::log(Level level, const std::string &message)
+    {
+        if (level < currentLevel)
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(logMutex);
+
+        std::stringstream ss;
+        ss << "[" << getCurrentTimestamp() << "] [" << name << "] [" << getLevelName(level) << "] " << message;
+
+        // Output to console
+        switch (level)
+        {
+        case Level::DEBUG:
+        case Level::INFO:
+            std::cout << ss.str() << std::endl;
+            break;
+        case Level::WARNING:
+            std::cout << "\033[33m" << ss.str() << "\033[0m" << std::endl; // Yellow
+            break;
+        case Level::ERROR:
+        case Level::CRITICAL:
+            std::cerr << "\033[31m" << ss.str() << "\033[0m" << std::endl; // Red
+            break;
+        }
+
+        // Output to file
+        if (logFile.is_open())
+        {
+            logFile << ss.str() << std::endl;
+            logFile.flush();
+        }
+    }
+
+    inline void LoggerInstance::debug(const std::string &message)
+    {
+        log(Level::DEBUG, message);
+    }
+
+    inline void LoggerInstance::info(const std::string &message)
+    {
+        log(Level::INFO, message);
+    }
+
+    inline void LoggerInstance::warning(const std::string &message)
+    {
+        log(Level::WARNING, message);
+    }
+
+    inline void LoggerInstance::error(const std::string &message)
+    {
+        log(Level::ERROR, message);
+    }
+
+    inline void LoggerInstance::critical(const std::string &message)
+    {
+        log(Level::CRITICAL, message);
+    }
+
+    // LoggerInstance variadic template implementations
+    template <typename... Args>
+    inline void LoggerInstance::debug(Args &&...args)
+    {
+        std::stringstream ss;
+        (ss << ... << std::forward<Args>(args));
+        log(Level::DEBUG, ss.str());
+    }
+
+    template <typename... Args>
+    inline void LoggerInstance::info(Args &&...args)
+    {
+        std::stringstream ss;
+        (ss << ... << std::forward<Args>(args));
+        log(Level::INFO, ss.str());
+    }
+
+    template <typename... Args>
+    inline void LoggerInstance::warning(Args &&...args)
+    {
+        std::stringstream ss;
+        (ss << ... << std::forward<Args>(args));
+        log(Level::WARNING, ss.str());
+    }
+
+    template <typename... Args>
+    inline void LoggerInstance::error(Args &&...args)
+    {
+        std::stringstream ss;
+        (ss << ... << std::forward<Args>(args));
+        log(Level::ERROR, ss.str());
+    }
+
+    template <typename... Args>
+    inline void LoggerInstance::critical(Args &&...args)
+    {
+        std::stringstream ss;
+        (ss << ... << std::forward<Args>(args));
+        log(Level::CRITICAL, ss.str());
     }
 
 } // namespace Logger
