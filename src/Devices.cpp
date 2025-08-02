@@ -2,6 +2,7 @@
 #include <iostream>
 #include "Devices.hpp"
 #include "GrotiferMaster.hpp"
+#include "Logger.hpp"
 #include <cstdlib>
 
 #define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
@@ -20,10 +21,10 @@ bool Devices::initLabJack()
 {
     if (!OpenLabJackU6(hDevice))
     {
-        std::cerr << "Failed to open LabJack\n";
+        Logger::error("Failed to open LabJack");
         return false;
     }
-    std::cout << "[LabJack] Successfully Opened" << std::endl;
+    Logger::info("[LabJack] Successfully Opened");
     p_grotiferLJU6 = std::make_unique<LabJackU6>(hDevice, 0);
     return true;
 }
@@ -32,10 +33,10 @@ bool Devices::initInclinometer()
 {
     if (!p_grotiferLJU6)
     {
-        std::cerr << "Failed to open the inclinometer. Make sure to call initLabjack first! \n";
+        Logger::error("Failed to open the inclinometer. Make sure to call initLabjack first!");
         return false;
     }
-    std::cout << "[Inclinometer] Successfully Opened" << std::endl;
+    Logger::info("[Inclinometer] Successfully Opened");
     p_inclinometer = std::make_unique<LabJackInclinometer>(*p_grotiferLJU6, 0, 1);
     return true;
 }
@@ -44,10 +45,10 @@ bool Devices::initSunSensor()
 {
     if (!OpenSunSensor(SUNSENSOR_SERIAL_PORT, 115200, modbusCtx))
     {
-        std::cerr << "Failed to open Sun Sensor\n";
+        Logger::error("Failed to open Sun Sensor");
         return false;
     }
-    std::cout << "[Sun Sensor] Successfully Opened" << std::endl;
+    Logger::info("[Sun Sensor] Successfully Opened");
     p_sunSensor = std::make_unique<ModbusSunSensor>(modbusCtx);
     return true;
 }
@@ -62,7 +63,7 @@ bool Devices::initMaxonMotors()
     eposErrFile.open("logs/Maxon EPOS Error Log.txt");
     if (!eposErrFile.is_open())
     {
-        std::cerr << "Failed to open EPOS Error Log file/n";
+        Logger::error("Failed to open EPOS Error Log file");
         exit(EXIT_FAILURE);
     }
 
@@ -85,19 +86,19 @@ bool Devices::initMaxonMotors()
         {
             xMotorParams.keyHandle = keyHandle[i];
             xMotorParams.portName = &availPortNameList[i][0];
-            std::cout << "[Maxon Motor] X found" << std::endl;
+            Logger::info("[Maxon Motor] X found");
         }
         if (serialNo[i] == yMotorParams.serialNo)
         {
             yMotorParams.keyHandle = keyHandle[i];
             yMotorParams.portName = &availPortNameList[i][0];
-            std::cout << "[Maxon Motor] Y found" << std::endl;
+            Logger::info("[Maxon Motor] Y found");
         }
         if (serialNo[i] == zMotorParams.serialNo)
         {
             zMotorParams.keyHandle = keyHandle[i];
             zMotorParams.portName = &availPortNameList[i][0];
-            std::cout << "[Maxon Motor] Z found" << std::endl;
+            Logger::info("[Maxon Motor] Z found");
         }
     }
 
@@ -106,7 +107,7 @@ bool Devices::initMaxonMotors()
     p_mmY = std::make_unique<MaxonMotor>(eposErrFile, yMotorParams, 'v');
     p_mmZ = std::make_unique<MaxonMotor>(eposErrFile, zMotorParams, 'v');
 
-    std::cout << "[Maxon Motor] Has been initialized!" << std::endl;
+    Logger::info("[Maxon Motor] Has been initialized!");
 
     return true;
 }
@@ -116,7 +117,7 @@ std::unique_ptr<MaxonMotor> Devices::releaseMMX()
 {
     if (!p_mmX)
     {
-        std::cerr << "Motor X has not been initialized!" << std::endl;
+        Logger::error("Motor X has not been initialized!");
     }
     return std::move(p_mmX);
 }
@@ -125,7 +126,7 @@ std::unique_ptr<MaxonMotor> Devices::releaseMMY()
 {
     if (!p_mmY)
     {
-        std::cerr << "Motor Y has not been initialized!" << std::endl;
+        Logger::error("Motor Y has not been initialized!");
     }
     return std::move(p_mmY);
 }
@@ -134,7 +135,7 @@ std::unique_ptr<MaxonMotor> Devices::releaseMMZ()
 {
     if (!p_mmZ)
     {
-        std::cerr << "Motor Z has not been initialized!" << std::endl;
+        Logger::error("Motor Z has not been initialized!");
     }
     return std::move(p_mmZ);
 }
@@ -143,7 +144,7 @@ std::unique_ptr<LabJackU6> Devices::releaseLabJackU6()
 {
     if (!p_grotiferLJU6)
     {
-        std::cerr << "Labjack has not been initialized!" << std::endl;
+        Logger::error("Labjack has not been initialized!");
     }
     return std::move(p_grotiferLJU6);
 }
@@ -152,7 +153,7 @@ std::unique_ptr<LabJackInclinometer> Devices::releaseInclinometer()
 {
     if (!p_inclinometer)
     {
-        std::cerr << "Inclinometer has not been initialized!" << std::endl;
+        Logger::error("Inclinometer has not been initialized!");
     }
     return std::move(p_inclinometer);
 }
@@ -161,7 +162,7 @@ std::unique_ptr<ModbusSunSensor> Devices::releaseSunSensor()
 {
     if (!p_sunSensor)
     {
-        std::cerr << "Sun Sensor has not been initialized!" << std::endl;
+        Logger::error("Sun Sensor has not been initialized!");
     }
     return std::move(p_sunSensor);
 }
