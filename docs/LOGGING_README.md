@@ -1,115 +1,230 @@
 # C++ Logging System
 
-This project includes a simple logging system similar to Python's logging module for C++. The logging system provides different log levels, global configuration, and both console and file output.
+A simple and flexible logging system for C++ that provides multiple log levels, global and named logger instances, and both console and file output.
 
-## Features
-
-- **Multiple Log Levels**: DEBUG, INFO, WARNING, ERROR, CRITICAL
-- **Global Configuration**: Set log level globally to control output
-- **Thread Safe**: Uses mutex for thread safety
-- **Console and File Output**: Logs to both console (with colors) and file
-- **Timestamped**: Each log entry includes a timestamp with milliseconds
-- **Configurable**: Easy to set log level and log file location
-
-## Usage
-
-### Basic Usage
+## Quick Start
 
 ```cpp
 #include "Logger.hpp"
 
 int main() {
-    // Initialize the logger
+    // Initialize the global logger
     Logger::init("logs/app.log", Logger::Level::INFO);
-    
-    // Log messages at different levels
-    Logger::debug("This is a debug message");
-    Logger::info("This is an info message");
-    Logger::warning("This is a warning message");
-    Logger::error("This is an error message");
-    Logger::critical("This is a critical message");
-    
+
+    // Use global logger functions
+    Logger::info("Application started");
+    Logger::debug("Debug information");
+    Logger::warning("Warning message");
+    Logger::error("Error occurred");
+
     // Cleanup when done
     Logger::cleanup();
-    
+
     return 0;
 }
 ```
 
-### Changing Log Level
+## Usage Examples
+
+### Global Logger Functions
 
 ```cpp
-// Set to only show WARNING and above
-Logger::setLevel(Logger::Level::WARNING);
+// Basic logging
+Logger::info("Simple message");
+Logger::debug("Debug info");
+Logger::warning("Warning message");
+Logger::error("Error occurred");
 
-// Set to show all messages
-Logger::setLevel(Logger::Level::DEBUG);
-
-// Get current log level
-Logger::Level currentLevel = Logger::getLevel();
+// Multiple arguments (variadic templates)
+Logger::info("State: ", stateName, " Value: ", value);
+Logger::debug("Matrix: ", matrix, " Vector: ", vector);
+Logger::warning("Component: ", component, " Status: ", status);
 ```
 
-### Configuration
+### Named Logger Instances
 
-The logging level can be configured in the `AttitudeConfig` struct in `include/Config.hpp`:
+Create named logger instances for different components:
 
 ```cpp
-struct AttitudeConfig {
-    // ... other config ...
-    
-    // --- Logging Configuration --- //
-    Logger::Level logLevel = Logger::Level::INFO; // Global logging level
+// In your class header
+class AttitudeControl {
+private:
+    Logger::LoggerInstance logger;
+    // ... other members
 };
+
+// In your class constructor
+AttitudeControl::AttitudeControl() : logger("Attitude Control") {
+    // Constructor code
+}
+
+// In your class methods
+void AttitudeControl::someMethod() {
+    logger.info("Starting attitude control");
+    logger.debug("Current state: ", currentState);
+    logger.warning("Threshold exceeded: ", threshold);
+    logger.error("Control loop failed");
+}
+```
+
+### Multiple Arguments
+
+The logger supports multiple arguments for flexible message composition:
+
+```cpp
+// String concatenation
+Logger::info("Processing " + std::to_string(count) + " items");
+
+// Multiple arguments (preferred)
+Logger::info("Processing ", count, " items");
+Logger::debug("Position: ", x, ", ", y, ", ", z);
+Logger::warning("Temperature: ", temp, "°C exceeds limit: ", limit, "°C");
+
+// With logger instances
+logger.info("Motor ", motorId, " velocity: ", velocity);
+logger.debug("Matrix rotation: ", rotationMatrix);
 ```
 
 ## Log Levels
 
-- **DEBUG (0)**: Detailed information for debugging
+- **DEBUG (0)**: Detailed debugging information
 - **INFO (1)**: General information about program execution
-- **WARNING (2)**: Warning messages for potentially problematic situations
+- **WARNING (2)**: Warning messages for potential issues
 - **ERROR (3)**: Error messages for serious problems
-- **CRITICAL (4)**: Critical errors that may prevent the program from running
+- **CRITICAL (4)**: Critical errors that may prevent execution
+
+## Configuration
+
+### Setting Log Level
+
+```cpp
+// Set global log level
+Logger::setLevel(Logger::Level::DEBUG);  // Show all messages
+Logger::setLevel(Logger::Level::WARNING); // Show warnings and above only
+
+// Get current level
+Logger::Level current = Logger::getLevel();
+```
+
+### Initialization
+
+```cpp
+// Initialize with custom log file and level
+Logger::init("logs/myapp.log", Logger::Level::INFO);
+
+// Initialize with default settings
+Logger::init("logs/debug.log", Logger::Level::DEBUG);
+```
 
 ## Output Format
 
-Log messages include:
-- Timestamp with milliseconds: `[2024-01-15 14:30:25.123]`
-- Log level: `[DEBUG]`, `[INFO]`, etc.
-- Message content
+### Console Output (with colors)
 
-Example:
 ```
-[2024-01-15 14:30:25.123] [DEBUG] Orientation Matrix Calculated
-[2024-01-15 14:30:25.124] [INFO] Starting Grotifer application
-[2024-01-15 14:30:25.125] [WARNING] Kill signal detected (E pressed)
+[2024-01-15 14:30:25.123] [INFO] Application started
+[2024-01-15 14:30:25.124] [DEBUG] Processing 5 items
+[2024-01-15 14:30:25.125] [WARNING] Temperature: 85°C exceeds limit: 80°C
+[2024-01-15 14:30:25.126] [Attitude Control] [INFO] Starting attitude control
 ```
 
-## Console Colors
+### File Output (same format, no colors)
 
-- **DEBUG/INFO**: Normal text
-- **WARNING**: Yellow text
-- **ERROR/CRITICAL**: Red text
+All messages are also written to the log file with timestamps and log levels.
 
-## File Output
+## Best Practices
 
-All log messages are also written to the specified log file with the same format but without colors.
+### 1. Use Named Logger Instances for Components
+
+```cpp
+// Good: Named logger for component
+class MotorController {
+private:
+    Logger::LoggerInstance logger;
+public:
+    MotorController() : logger("Motor Controller") {}
+    void control() {
+        logger.info("Starting motor control");
+        logger.debug("Current RPM: ", rpm);
+    }
+};
+```
+
+### 2. Use Multiple Arguments Instead of String Concatenation
+
+```cpp
+// Good: Multiple arguments
+Logger::info("Processing ", count, " items in ", time, "ms");
+
+// Avoid: String concatenation
+Logger::info("Processing " + std::to_string(count) + " items in " + std::to_string(time) + "ms");
+```
+
+### 3. Set Appropriate Log Levels
+
+```cpp
+// Development
+Logger::setLevel(Logger::Level::DEBUG);
+
+// Production
+Logger::setLevel(Logger::Level::INFO);
+
+// Critical systems
+Logger::setLevel(Logger::Level::WARNING);
+```
+
+### 4. Initialize Early, Cleanup Late
+
+```cpp
+int main() {
+    Logger::init("logs/app.log", Logger::Level::INFO);
+
+    // Your application code here
+
+    Logger::cleanup();
+    return 0;
+}
+```
 
 ## Thread Safety
 
-The logging system is thread-safe using a mutex to prevent concurrent access to the log file and console output.
+The logging system is thread-safe using mutex protection for concurrent access.
 
-## Integration with Existing Code
+## Integration Examples
 
-The logging system has been integrated into the existing codebase:
+### In AttitudeControl.cpp
 
-1. **AttitudeControl**: Replaced debug `std::cout` statements with `Logger::debug()`
-2. **main.cpp**: Added application-level logging
-3. **Config.hpp**: Added logging level configuration
+```cpp
+// Using named logger instance
+logger.info("State: ", stateName);
+logger.debug("Rotation matrix: ", rotationMatrix);
+logger.warning("Threshold exceeded");
+logger.error("Control loop failed");
+```
 
-## Example
+### In Devices.cpp
 
-See `src/logging_example.cpp` for a complete example of how to use the logging system.
+```cpp
+// Using global logger
+Logger::info("[LabJack] Successfully Opened");
+Logger::error("Failed to open LabJack");
+```
+
+### In main.cpp
+
+```cpp
+Logger::init("logs/debug.log", Logger::Level::INFO);
+Logger::info("Starting Grotifer application");
+// ... application code ...
+Logger::info("[KILLING] Kill signal detected (E pressed)");
+Logger::cleanup();
+```
 
 ## Building
 
-The logging system is header-only and doesn't require additional compilation steps. Just include `"Logger.hpp"` in your source files. 
+The logging system is header-only. Simply include `"Logger.hpp"` in your source files:
+
+```cpp
+#include "Logger.hpp"
+```
+
+No additional compilation steps or libraries required.
