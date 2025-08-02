@@ -179,7 +179,7 @@ int AttitudeControl::Run()
 
         // Calculating the attitude
         solRotMatBackward = BackwardSol::AlgebraicSolutionMatrix(thxIncl, thzIncl, thySun, thzSun);
-        Logger::debug("[DEBUG] Orientation Matrix Calculated");
+        Logger::debug("Orientation Matrix Calculated");
 
         // Get the axes
         Vector3d bodyX, bodyY, bodyZ;
@@ -190,7 +190,7 @@ int AttitudeControl::Run()
         // Calculate Euler Angles
         double thxEuler, thyEuler, thzEuler;
         BackwardSol::GetEulerFromRot(solRotMatBackward, &thxEuler, &thyEuler, &thzEuler);
-        Logger::debug("[DEBUG] Euler Angles Calculated");
+        Logger::debug("Euler Angles Calculated");
 
         double time = GetTimeNow(); // Get the current time
 
@@ -212,7 +212,7 @@ int AttitudeControl::Run()
         }
 
         angularVelocityVec = emaFilter3d(config.fc, time - preTime, angularVelocityVec, preAngularVelocityVec); // Use Exponential-moving-average filter
-        Logger::debug("[DEBUG] Angular Velocity Vector Calculated");
+        Logger::debug("Angular Velocity Vector Calculated");
 
         // Log the data
         angularVelLog << left << setw(w) << GetTimeNow() << left << setw(w) << angularVelocityVec(0)
@@ -234,7 +234,7 @@ int AttitudeControl::Run()
                   << left << setw(w) << Rad2Deg(thySun) << left << setw(w) << Rad2Deg(thzSun)
                   << left << setw(w) << Rad2Deg(thxEuler) << left << setw(w) << Rad2Deg(thyEuler) << left << setw(w) << Rad2Deg(thzEuler) << endl;
 
-        Logger::debug("[DEBUG] Attitude Data Logged");
+        Logger::debug("Attitude Data Logged");
 
         // Update
         preAngularVelocityVec = angularVelocityVec;
@@ -390,7 +390,7 @@ bool AttitudeControl::moveXMomentumWheelWithTorque(double torque, double deltaT,
     *velCmdVal = velCmd;
 
     xMomentumWheelVel = velCmd;
-    Logger::debug("[DEBUG] Moving X");
+    Logger::debug("Moving X");
     return saturateXMomtWheelFlag;
 }
 
@@ -424,7 +424,7 @@ bool AttitudeControl::moveYMomentumWheelWithTorque(double torque, double deltaT,
     *velCmdVal = velCmd;
 
     yMomentumWheelVel = velCmd;
-    Logger::debug("[DEBUG] Moving Y");
+    Logger::debug("Moving Y");
 
     return saturateYMomtWheelFlag;
 }
@@ -456,13 +456,13 @@ bool AttitudeControl::moveZMomentumWheelWithTorque(double torque, double deltaT,
         velCmd = -config.maxVelZ;
     }
 
-    Logger::debug("[DEBUG] Giving Z Wheel a Velocity Command");
+    Logger::debug("Giving Z Wheel a Velocity Command");
 
     (*p_mmZ).RunWithVelocity(velCmd);
     *torqueCmdVal = torqueCmd;
     *velCmdVal = velCmd;
 
-    Logger::debug("[DEBUG] Z Velocity Successfully Commanded");
+    Logger::debug("Z Velocity Successfully Commanded");
 
     zMomentumWheelVel = velCmd;
 
@@ -474,7 +474,7 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     double torqueCmdX, torqueCmdY, torqueCmdZ;
     double velCmdX, velCmdY, velCmdZ;
 
-    Logger::debug("[DEBUG] Applying torque: ", torque);
+    Logger::debug("Applying torque: ", torque);
 
     if (moveXMomentumWheelWithTorque(torque(0), deltaT, &torqueCmdX, &velCmdX))
         Logger::warning("Saturate X Momentum Wheel");
@@ -483,7 +483,7 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     if (moveZMomentumWheelWithTorque(torque(2), deltaT, &torqueCmdX, &velCmdZ))
         Logger::warning("Saturate Z Momentum Wheel");
 
-    Logger::debug("[DEBUG] Successfully applied torque");
+    Logger::debug("Successfully applied torque");
 
     // Get the data
     xMomentumWheelVel = (*p_mmX).GetVelocityIs();
@@ -493,7 +493,7 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     momentumWheelsLog << left << setw(w) << GetTimeNow() << left << setw(w) << torqueCmdX << left << setw(w) << velCmdX << left << setw(w) << xMomentumWheelVel
                       << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel
                       << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << zMomentumWheelVel << endl;
-    Logger::debug("[DEBUG] Momentum Wheel Data Logged");
+    Logger::debug("Momentum Wheel Data Logged");
 }
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
