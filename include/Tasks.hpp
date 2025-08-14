@@ -22,8 +22,6 @@ public:
     int Run() override;
 
 private:
-    // Configs
-    AttitudeConfig config;
     // States
     static constexpr int INITIALIZING = 0;
     static constexpr int DETERMINING_ATTITUDE = 1;
@@ -57,9 +55,9 @@ private:
     double preTime;
 
     // position and velocity variables
-    Vector3d preAngularVelocityVec{{0.0, 0.0, 0.0}};
-    Vector3d angularVelocityVec{{0.0, 0.0, 0.0}};
-    Matrix3d solRotMatBackward{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+    Vector3d preAngularVelocityVec{{0.0, 0.0, 0.0}}; 
+    Vector3d angularVelocityVec{{0.0, 0.0, 0.0}};       // IN BODY FIXED COORDS
+    Matrix3d currentOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     double rotAngle;
 
     // for calculating movement profiles
@@ -69,7 +67,7 @@ private:
 
     // for the initial kick
     double iniKickEndTime;
-    double preTimeIni; // Used to track change in time
+    double preTimeInitializingMotion; // Used to track change in time
     bool iniMotionDone = false;
 
     // for detumbling
@@ -82,7 +80,27 @@ private:
     double preTimeHoldingPos;
     Matrix3d holdingPosition{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
-    // for motors
+    // FOR MOVING PROFILE
+    double preTimeMoving;
+    double movingProfileAccelerationEndTime;   // accelerate before this time is reached
+    double movingProfileConstantEndTime;       // constant velocity before this time is reached
+    double movingProfileDecelerationEndTime;   // decelerate before this time is reached (also the end of the move profile)
+    bool movingProfileCalculated = false;       // true if the moving profile has been calculated (e. g. the times above have been set)
+    bool movingDone = false;
+    bool findSunDone = false;
+    double refVelocity = 0.015;      // [rad/s] The constant velocity of the moving profile
+    double refAcceleration = 2.0e-3; // [rad/s^2] The constant acceleration/deceleration of the moving profile
+    Matrix3d startingOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+
+    // moving profile variables
+    double movingProfileVelocity = 0.0;
+    double movingProfileAngle = 0.0;
+    double deltaTheta = 0.0;
+    Vector3d movingProfileRotAxis{{0.0, 0.0, 0.0}};
+
+
+
+    // FOR MOTORS
     int xMomentumWheelVel = 0;
     int yMomentumWheelVel = 0;
     int zMomentumWheelVel = 0;
@@ -93,6 +111,9 @@ private:
 
     PIControl xPositionLoop,
         yPositionLoop, zPositionLoop;
+
+    // Named logger instance
+    Logger::LoggerInstance logger;
 
     /**
      * @brief Applies a torque using the momentum wheels
