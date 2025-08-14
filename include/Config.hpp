@@ -8,7 +8,6 @@ struct AttitudeConfig
     // Initial Kick Paramters
     static inline constexpr double iniKickDuration = 250.0e-3;
     static inline const Vector3d iniTorqueVec{0.0, 0.0, 0.1};
-    
 
     // Detumbling Parameters
     static inline constexpr double detumblingMaxDuration = 10;
@@ -29,7 +28,7 @@ struct AttitudeConfig
     static inline constexpr int16_t maxVelZ = 7500;           // Maximum speed for Z-momentum wheel, [rpm]
 
     static inline constexpr double fc = 4.0; // Cut off frequency for angular velocity filtering
-    
+
     // --- Angular velocity loop gain constants --- //
     static inline constexpr double xVelocityK_p = 0.175;
     static inline constexpr double xVelocityK_i = 1.5e-3 * xVelocityK_p;
@@ -63,7 +62,7 @@ struct AttitudeConfig
     static inline constexpr double yPositionlLim = -1.0;
     static inline constexpr double yPositionK_d = 0.1;
 
-    static inline constexpr double zPositionK_p = 0.05;
+    static inline constexpr double zPositionK_p = 0.2;
     static inline constexpr double zPositionK_i = 0 * zPositionK_p;
     static inline constexpr double zPositionhLim = 0.5;
     static inline constexpr double zPositionlLim = -0.5;
