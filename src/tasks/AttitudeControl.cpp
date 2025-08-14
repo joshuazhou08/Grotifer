@@ -346,9 +346,9 @@ int AttitudeControl::Run()
         double deltaT = time - preTimeDetumbling;
 
         Vector3d torque;
-        torque(0) = -AttitudeConfig::xVelocityK_p * angularVelocityVec(0);
-        torque(1) = -AttitudeConfig::yVelocityK_p * angularVelocityVec(1);
-        torque(2) = -AttitudeConfig::zVelocityK_p * angularVelocityVec(2);
+        torque(0) = xVelocityLoop.PICalculation(0, angularVelocityVec(0));
+        torque(1) = yVelocityLoop.PICalculation(0, angularVelocityVec(1));
+        torque(2) = zVelocityLoop.PICalculation(0, angularVelocityVec(2));
 
         applyTorque(torque, deltaT);
 
@@ -438,6 +438,8 @@ int AttitudeControl::Run()
         torque(0) = xVelocityLoop.PICalculation(omegaCmdBody(0), angularVelocityVec(0));
         torque(1) = yVelocityLoop.PICalculation(omegaCmdBody(1), angularVelocityVec(1));
         torque(2) = zVelocityLoop.PICalculation(omegaCmdBody(2), angularVelocityVec(2));
+
+        angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
 
         applyTorque(torque, deltaT);
 
