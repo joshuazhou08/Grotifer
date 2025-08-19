@@ -295,19 +295,6 @@ int AttitudeControl::Run()
                 
             }
         }
-        else
-        {
-            nextState = HOLDING_POSITION;
-            if (!holdingPositionSet)
-            {
-                holdingPosition.setIdentity();
-                holdingPositionSet = true;
-                logger.info("holding position: ", holdingPosition);
-                preTimeHoldingPos = time;
-            }
-            nextStateName = "Holding Position";
-        }
-
         break;
     }
 
@@ -352,9 +339,9 @@ int AttitudeControl::Run()
 
         applyTorque(torque, deltaT);
 
-        double max_component = angularVelocityVec.cwiseAbs().maxCoeff();
+        double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
 
-        if (time >= detumblingEndTime && max_component < 4.5e-3)
+        if (time >= detumblingEndTime && maxComponent < 4.5e-3)
         {
             detumblingDone = true;
 
@@ -442,7 +429,30 @@ int AttitudeControl::Run()
         angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
 
         applyTorque(torque, deltaT);
+        
+        double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
+        if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
+        {
+            movingDone = true;
+            if (!findSunDone) 
+            {
+                findSunDone = true;                
+                setHoldingPosition(Eigen::Matrix3d::Identity());
+                nextState = HOLDING_POSITION;
+                nextStateName = "Holding Position";
+                logger.info("Find sun done!");
+            }
 
+            else 
+            {
+                setHoldingPosition(movingProfileOrientation);
+                nextState = HOLDING_POSITION;
+                nextStateName = "Holding Position";
+                logger.info("Current move done!");
+
+                movingProfileCalculated = false;
+            }
+        }
         
         nextState = DETERMINING_ATTITUDE;
         nextStateName = "Determining Attitude";
@@ -594,6 +604,15 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
                       << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel
                       << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << zMomentumWheelVel << endl;
     logger.debug("Momentum Wheel Data Logged");
+}
+
+void AttitudeControl::setHoldingPosition(Matrix3d position) 
+{
+    holdingPosition = position;
+    holdingPositionSet = true;
+    preTimeHoldingPos = GetTimeNow();
+    logger.info("holding position:", holdingPosition);
+
 }
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)

@@ -149,4 +149,11 @@ private:
      * @returns True if the X momentum wheel is saturated
      */
     bool moveZMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
+
+    /**
+     * @brief Sets the holding position and configures the right flags 
+     * @param position The position to hold
+     */
+
+     void setHoldingPosition(Matrix3d position);
 };
