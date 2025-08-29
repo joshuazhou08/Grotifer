@@ -12,7 +12,7 @@ using namespace std;
 using namespace Eigen;
 // Forward delcaration for helpers
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
-std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d& fromMatrix, const Matrix3d& toMatrix);
+std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
                                  std::unique_ptr<MaxonMotor> mmY,
@@ -75,6 +75,14 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
     maxAccCmdX = (*p_mmX).GetMaxTorque() / AttitudeConfig::momOfInertiaX;
     maxAccCmdY = (*p_mmY).GetMaxTorque() / AttitudeConfig::momOfInertiaY;
     maxAccCmdZ = (*p_mmZ).GetMaxTorque() / AttitudeConfig::momOfInertiaZ;
+
+    // Initialize rotation queue
+    auto rotations = AttitudeConfig::getRotationQueue();
+    for (const auto &rotation : rotations)
+    {
+        rotationQueue.push(rotation);
+    }
+    rotationQueueInitialized = true;
 }
 
 AttitudeControl::~AttitudeControl()
@@ -126,8 +134,6 @@ int AttitudeControl::Run()
     timeStart = GetTimeNow();
     state = nextState;
     stateName = nextStateName;
-
-    logger.info("State: ", stateName);
 
     switch (state)
     {
@@ -206,7 +212,7 @@ int AttitudeControl::Run()
         }
         else
         {
-            double deltaT = time - preTime;                                                                           // Calculate the actual delta_t between two consecutive calls
+            double deltaT = time - preTime;                                                                                             // Calculate the actual delta_t between two consecutive calls
             angularVelocityVec = currentOrientation.transpose() * AngularVel::GetAngularVelVec(prevRotMat, currentOrientation, deltaT); // convert angular velocity to body fixed frame
             rotAngle = AngularVel::RotAngleAboutRotAxis(currentOrientation);
             prevRotMat = currentOrientation;
@@ -253,47 +259,67 @@ int AttitudeControl::Run()
             preTimeDetumbling = time;
         }
 
-        else if (!movingDone) 
+        else if (!movingDone)
         {
             nextState = MOVING;
             nextStateName = "Moving";
             preTimeMoving = time;
             if (!movingProfileCalculated)
-            {   
-                //reset moving profile variables
+            {
+                // reset moving profile variables
                 movingProfileVelocity = 0.0;
                 movingProfileAngle = 0.0;
                 movingProfileRotAxis << 0.0, 0.0, 0.0;
                 startingOrientation = currentOrientation;
-                if (!findSunDone) 
-                {
-                    auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(currentOrientation, Matrix3d::Identity());
-                    deltaTheta = rotAngle;
-                    movingProfileRotAxis = rotAxis.normalized();
-                    logger.info("Rot Axis For Finding Sun: ", movingProfileRotAxis);
-                    logger.info("Delta Theta For Finding Sun: ", deltaTheta);
-                }
 
+                // Get the next rotation from the queue (includes find sun if it was prepended)
+                if (!rotationQueue.empty())
+                {
+                    currentRotationCommand = rotationQueue.front();
+                    rotationQueue.pop();
+
+                    deltaTheta = currentRotationCommand.angle;
+                    movingProfileRotAxis = currentRotationCommand.axis.normalized();
+
+                    logger.info("Executing Rotation Command:");
+                    logger.info("  Axis: ", movingProfileRotAxis);
+                    logger.info("  Angle (rad): ", deltaTheta);
+                    logger.info("  Angle (deg): ", Rad2Deg(deltaTheta));
+                    logger.info("  Velocity: ", currentRotationCommand.velocity);
+                    logger.info("  Acceleration: ", currentRotationCommand.acceleration);
+                    logger.info("  Remaining moves in queue: ", rotationQueue.size());
+                }
                 else
                 {
-                    deltaTheta = 0; //TODO: IMPLEMENT USER INPUTTED MOVES HERE
+                    deltaTheta = 0; // No move configured
+                    logger.info("No rotation configured - queue is empty");
                 }
                 double time = GetTimeNow();
-                double accelDuration = abs(refVelocity / refAcceleration) + 2 * deltaTaskTime; 
-                double constantDuration = abs(deltaTheta / refVelocity) + 2 * deltaTaskTime;
+
+                // Use parameters from current rotation command
+                double moveVelocity = currentRotationCommand.velocity;
+                double moveAcceleration = currentRotationCommand.acceleration;
+
+                double accelDuration = abs(moveVelocity / moveAcceleration) + 2 * deltaTaskTime;
+                double constantDuration = abs(deltaTheta / moveVelocity) + 2 * deltaTaskTime;
                 double deccelDuration = accelDuration;
 
                 movingProfileAccelerationEndTime = time + accelDuration;
                 movingProfileConstantEndTime = time + accelDuration + constantDuration;
                 movingProfileDecelerationEndTime = time + accelDuration + constantDuration + deccelDuration;
-                movingProfileCalculated = true; 
+                movingProfileCalculated = true;
 
                 logger.info("Moving Profile Calculated");
                 logger.info("Moving Profile Acceleration End Time: ", movingProfileAccelerationEndTime);
                 logger.info("Moving Profile Constant End Time: ", movingProfileConstantEndTime);
                 logger.info("Moving Profile Deceleration End Time: ", movingProfileDecelerationEndTime);
-                
             }
+        }
+
+        else
+        {
+            nextState = HOLDING_POSITION;
+            nextStateName = "Holding Position";
         }
         break;
     }
@@ -345,7 +371,16 @@ int AttitudeControl::Run()
         {
             detumblingDone = true;
 
-            logger.info("Detumbling Done");
+            // Prepend find sun rotation to the front of the queue if enabled
+            if (AttitudeConfig::enableFindSun)
+            {
+                prependFindSunRotation();
+                logger.info("Detumbling Done - Find Sun rotation added to queue");
+            }
+            else
+            {
+                logger.info("Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations");
+            }
         }
 
         nextState = DETERMINING_ATTITUDE;
@@ -377,23 +412,23 @@ int AttitudeControl::Run()
     }
 
     case MOVING:
-    {   
+    {
         double time = GetTimeNow();
         double deltaT = time - preTimeMoving;
 
         if (time < movingProfileAccelerationEndTime)
         {
-            movingProfileVelocity = movingProfileVelocity + refAcceleration * deltaT;
+            movingProfileVelocity = movingProfileVelocity + currentRotationCommand.acceleration * deltaT;
             movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
         }
         else if (time < movingProfileConstantEndTime)
         {
-            movingProfileVelocity = refVelocity;
+            movingProfileVelocity = currentRotationCommand.velocity;
             movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
         }
         else if (time < movingProfileDecelerationEndTime)
         {
-            movingProfileVelocity = movingProfileVelocity - refAcceleration * deltaT;
+            movingProfileVelocity = movingProfileVelocity - currentRotationCommand.acceleration * deltaT;
             movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
         }
         else
@@ -401,7 +436,7 @@ int AttitudeControl::Run()
             movingProfileVelocity = 0.0;
             movingProfileAngle = deltaTheta;
         }
-        
+
         refAngularVelocityVec = currentOrientation.transpose() * (movingProfileRotAxis * movingProfileVelocity);
 
         // Get the profile orientation by taking the starting orientation and rotating it by the profile angle
@@ -429,31 +464,29 @@ int AttitudeControl::Run()
         angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
 
         applyTorque(torque, deltaT);
-        
+
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
         if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
         {
             movingDone = true;
-            if (!findSunDone) 
-            {
-                findSunDone = true;                
-                setHoldingPosition(Eigen::Matrix3d::Identity());
-                nextState = HOLDING_POSITION;
-                nextStateName = "Holding Position";
-                logger.info("Find sun done!");
-            }
 
-            else 
+            // Check if there are more moves in the queue
+            if (!rotationQueue.empty())
+            {
+                logger.info("Current move done! Preparing next move from queue.");
+                movingProfileCalculated = false;
+                movingDone = false; // Reset to continue with next move
+            }
+            else
             {
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
-                logger.info("Current move done!");
-
+                logger.info("All moves completed! Holding final position.");
                 movingProfileCalculated = false;
             }
         }
-        
+
         nextState = DETERMINING_ATTITUDE;
         nextStateName = "Determining Attitude";
         preTimeMoving = time;
@@ -606,13 +639,41 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     logger.debug("Momentum Wheel Data Logged");
 }
 
-void AttitudeControl::setHoldingPosition(Matrix3d position) 
+void AttitudeControl::setHoldingPosition(Matrix3d position)
 {
     holdingPosition = position;
     holdingPositionSet = true;
     preTimeHoldingPos = GetTimeNow();
     logger.info("holding position:", holdingPosition);
+}
 
+void AttitudeControl::prependFindSunRotation()
+{
+    // Calculate rotation needed to go from current orientation to identity (sun-pointing)
+    auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(currentOrientation, Matrix3d::Identity());
+
+    // Create find sun rotation command using default velocity/acceleration
+    RotationCommand findSunCommand(rotAxis.normalized(), rotAngle, refVelocity, refAcceleration);
+
+    // Create a temporary queue to prepend the find sun command
+    std::queue<RotationCommand> tempQueue;
+    tempQueue.push(findSunCommand);
+
+    // Move all existing commands to temp queue
+    while (!rotationQueue.empty())
+    {
+        tempQueue.push(rotationQueue.front());
+        rotationQueue.pop();
+    }
+
+    // Replace the original queue with temp queue
+    rotationQueue = std::move(tempQueue);
+
+    logger.info("Find Sun rotation prepended to queue:");
+    logger.info("  Axis: ", rotAxis.normalized());
+    logger.info("  Angle (rad): ", rotAngle);
+    logger.info("  Angle (deg): ", Rad2Deg(rotAngle));
+    logger.info("  Total commands in queue: ", rotationQueue.size());
 }
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
@@ -622,15 +683,14 @@ Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVect
 };
 
 // Helper function to calculate rotation axis and angle between two rotation matrices
-std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d& fromMatrix, const Matrix3d& toMatrix)
+std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
 {
     Matrix3d rotation = AngularVel::RotMatBodyToBody(fromMatrix, toMatrix);
     AngleAxisd angleAxis{rotation};
-    
+
     Vector3d rotAxis = angleAxis.axis();
-    rotAxis(0) *= -1;  // Flip X component. We should figure out why its flipped
+    rotAxis(0) *= -1; // Flip X component. We should figure out why its flipped
     double rotAngle = angleAxis.angle();
-    
+
     return std::make_pair(rotAxis, rotAngle);
 };
-

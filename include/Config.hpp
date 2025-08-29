@@ -2,6 +2,20 @@
 
 #include "GrotiferMaster.hpp"
 #include "Logger.hpp"
+#include <vector>
+#include <queue>
+
+// Structure to define a rotation command
+struct RotationCommand
+{
+    Vector3d axis;       // Rotation axis (will be normalized)
+    double angle;        // Rotation angle in radians
+    double velocity;     // Maximum velocity for this move [rad/s]
+    double acceleration; // Acceleration for this move [rad/s^2]
+
+    RotationCommand(Vector3d rotAxis, double rotAngle, double vel = 0.015, double accel = 2.0e-3)
+        : axis(rotAxis), angle(rotAngle), velocity(vel), acceleration(accel) {}
+};
 struct AttitudeConfig
 {
 
@@ -67,6 +81,26 @@ struct AttitudeConfig
     static inline constexpr double zPositionhLim = 0.5;
     static inline constexpr double zPositionlLim = -0.5;
     static inline constexpr double zPositionK_d = 0.1;
+
+    // --- Arbitrary Rotation Configuration --- //
+
+    // Enable automatic find sun operation after detumbling
+    static inline constexpr bool enableFindSun = true;
+
+    // Enable arbitrary rotations (if false, no additional rotations after find sun)
+    static inline constexpr bool enableArbitraryRotations = true;
+    static inline constexpr double vel = 0.02;
+    static inline constexpr double accel = 4.0e-3;
+
+    // Queue of rotation commands to execute sequentially
+    static inline std::vector<RotationCommand> getRotationQueue()
+    {
+        return {
+            RotationCommand(Vector3d{0.0, 1.0, 0.0}, M_PI / 12.0, vel, accel),  // IN RADIANS
+            RotationCommand(Vector3d{0.0, -1.0, 0.0}, M_PI / 12.0, vel, accel), // IN RADIANS
+            RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 12.0, vel, accel)   // IN RADIANS
+        };
+    }
 };
 // --- Maxon motor factory functions ---
 inline maxon makeXMotor()

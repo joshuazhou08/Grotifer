@@ -2,6 +2,7 @@
 #pragma once
 #include "BaseTask.hpp" // BaseTask class declaration
 #include <fstream>
+#include <queue>
 #include "Config.hpp"
 #include "GrotiferMaster.hpp"
 
@@ -27,9 +28,8 @@ private:
     static constexpr int DETERMINING_ATTITUDE = 1;
     static constexpr int INITIALIZING_MOTION = 2;
     static constexpr int DETUMBLING = 3;
-    static constexpr int FINDING_SUN = 4;
-    static constexpr int HOLDING_POSITION = 5;
-    static constexpr int MOVING = 6;
+    static constexpr int HOLDING_POSITION = 4;
+    static constexpr int MOVING = 5;
 
     void InitializeLogs();
     std::ofstream attitudeLog; // holds the body fixed frame
@@ -55,8 +55,8 @@ private:
     double preTime;
 
     // position and velocity variables
-    Vector3d preAngularVelocityVec{{0.0, 0.0, 0.0}}; 
-    Vector3d angularVelocityVec{{0.0, 0.0, 0.0}};       // IN BODY FIXED COORDS
+    Vector3d preAngularVelocityVec{{0.0, 0.0, 0.0}};
+    Vector3d angularVelocityVec{{0.0, 0.0, 0.0}}; // IN BODY FIXED COORDS
     Matrix3d currentOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     double rotAngle;
 
@@ -82,14 +82,13 @@ private:
 
     // FOR MOVING PROFILE
     double preTimeMoving;
-    double movingProfileAccelerationEndTime;   // accelerate before this time is reached
-    double movingProfileConstantEndTime;       // constant velocity before this time is reached
-    double movingProfileDecelerationEndTime;   // decelerate before this time is reached (also the end of the move profile)
-    bool movingProfileCalculated = false;       // true if the moving profile has been calculated (e. g. the times above have been set)
+    double movingProfileAccelerationEndTime; // accelerate before this time is reached
+    double movingProfileConstantEndTime;     // constant velocity before this time is reached
+    double movingProfileDecelerationEndTime; // decelerate before this time is reached (also the end of the move profile)
+    bool movingProfileCalculated = false;    // true if the moving profile has been calculated (e. g. the times above have been set)
     bool movingDone = false;
-    bool findSunDone = false;
-    double refVelocity = 0.015;      // [rad/s] The constant velocity of the moving profile
-    double refAcceleration = 2.0e-3; // [rad/s^2] The constant acceleration/deceleration of the moving profile
+    double refVelocity = 0.02;       // [rad/s] The constant velocity of the moving profile
+    double refAcceleration = 4.0e-3; // [rad/s^2] The constant acceleration/deceleration of the moving profile
     Matrix3d startingOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
     // moving profile variables
@@ -98,7 +97,10 @@ private:
     double deltaTheta = 0.0;
     Vector3d movingProfileRotAxis{{0.0, 0.0, 0.0}};
 
-
+    // Rotation queue management
+    std::queue<RotationCommand> rotationQueue;
+    RotationCommand currentRotationCommand{{0.0, 0.0, 1.0}, 0.0}; // Default command
+    bool rotationQueueInitialized = false;
 
     // FOR MOTORS
     int xMomentumWheelVel = 0;
@@ -151,9 +153,14 @@ private:
     bool moveZMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
 
     /**
-     * @brief Sets the holding position and configures the right flags 
+     * @brief Sets the holding position and configures the right flags
      * @param position The position to hold
      */
+    void setHoldingPosition(Matrix3d position);
 
-     void setHoldingPosition(Matrix3d position);
+    /**
+     * @brief Calculates and prepends the find sun rotation command to the front of the queue
+     * This calculates the rotation needed to go from current orientation to identity matrix
+     */
+    void prependFindSunRotation();
 };
