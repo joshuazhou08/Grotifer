@@ -7,6 +7,7 @@
 #include <cmath>
 #include <future>
 #include <chrono>
+#include <thread>
 
 using namespace std;
 using namespace Eigen;
@@ -16,15 +17,17 @@ std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMa
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
                                  std::unique_ptr<MaxonMotor> mmY,
-                                 std::unique_ptr<MaxonMotor> mmZ,
                                  std::unique_ptr<ModbusSunSensor> sunSensor,
-                                 std::unique_ptr<LabJackInclinometer> inclinometer)
+                                 std::unique_ptr<LabJackInclinometer> inclinometer,
+                                 std::unique_ptr<FanController> fanX,
+                                 std::unique_ptr<FanController> fanZ)
     : BaseTask("AttitudeControl", 0),
       p_mmX(std::move(mmX)),
       p_mmY(std::move(mmY)),
-      p_mmZ(std::move(mmZ)),
       p_sunSensor(std::move(sunSensor)),
       p_inclinometer(std::move(inclinometer)),
+      p_fanX(std::move(fanX)),
+      p_fanZ(std::move(fanZ)),
       logger("Attitude Control"),
       xVelocityLoop(
           AttitudeConfig::xVelocityK_p,
@@ -71,10 +74,10 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
         throw std::runtime_error("Failed to open one or more log files in AttitudeControl.");
     }
 
+    logger.info("Logs Initialized");
+
     deltaTaskTime = AttitudeConfig::deltaTaskTime;
-    maxAccCmdX = (*p_mmX).GetMaxTorque() / AttitudeConfig::momOfInertiaX;
     maxAccCmdY = (*p_mmY).GetMaxTorque() / AttitudeConfig::momOfInertiaY;
-    maxAccCmdZ = (*p_mmZ).GetMaxTorque() / AttitudeConfig::momOfInertiaZ;
 
     // Initialize rotation queue
     auto rotations = AttitudeConfig::getRotationQueue();
@@ -83,6 +86,8 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
         rotationQueue.push(rotation);
     }
     rotationQueueInitialized = true;
+
+    logger.info("Moves planned");
 }
 
 AttitudeControl::~AttitudeControl()
@@ -95,6 +100,9 @@ AttitudeControl::~AttitudeControl()
         angularVelLog.close();
     if (momentumWheelsLog.is_open())
         momentumWheelsLog.close();
+    p_fanX->moveFan(2048);
+    p_fanZ->moveFan(2048);
+    logger.info("killed fans");
 }
 
 void AttitudeControl::InitializeLogs()
@@ -533,7 +541,6 @@ bool AttitudeControl::moveXMomentumWheelWithTorque(double torque, double deltaT,
     *velCmdVal = velCmd;
 
     xMomentumWheelVel = velCmd;
-    logger.debug("Moving X");
     return saturateXMomtWheelFlag;
 }
 
@@ -567,76 +574,72 @@ bool AttitudeControl::moveYMomentumWheelWithTorque(double torque, double deltaT,
     *velCmdVal = velCmd;
 
     yMomentumWheelVel = velCmd;
-    logger.debug("Moving Y");
-
     return saturateYMomtWheelFlag;
 }
 
-bool AttitudeControl::moveZMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal)
+bool AttitudeControl::moveXFanWithTorque(double torque)
 {
-    bool saturateZMomtWheelFlag = false;
-    double accCmd = 0; // Command value for acceleration
-    int velCmd = 0;
-    double torqueCmd = -torque; // Z is flipped
+    // Convert to fan target using helper function
+    uint16_t target = torqueToFanTarget(torque);
 
-    accCmd = torqueCmd / AttitudeConfig::momOfInertiaZ;
-    velCmd = zMomentumWheelVel + (accCmd * deltaT) * (30 / M_PI); // conversion factor
-
-    if (accCmd >= maxAccCmdZ)
-        accCmd = maxAccCmdZ;
-    else if (accCmd <= -maxAccCmdZ)
-        accCmd = -maxAccCmdZ;
-
-    // Check for saturation
-    if (velCmd > AttitudeConfig::maxVelZ)
+    // Send command to fan controller with built-in rate limiting
+    if (p_fanX && p_fanX->isOpen())
     {
-        saturateZMomtWheelFlag = true;
-        velCmd = AttitudeConfig::maxVelZ;
+        p_fanX->moveFan(target);
+        return false; // Success
     }
-    else if (velCmd < -AttitudeConfig::maxVelZ)
+    else
     {
-        saturateZMomtWheelFlag = true;
-        velCmd = -AttitudeConfig::maxVelZ;
+        return true; // Fan controller not available or not open
     }
-
-    logger.debug("Giving Z Wheel a Velocity Command");
-
-    (*p_mmZ).RunWithVelocity(velCmd);
-    *torqueCmdVal = torqueCmd;
-    *velCmdVal = velCmd;
-
-    logger.debug("Z Velocity Successfully Commanded");
-
-    zMomentumWheelVel = velCmd;
-
-    return saturateZMomtWheelFlag;
 }
 
+bool AttitudeControl::moveZFanWithTorque(double torque)
+{
+
+    // Convert to fan target using helper function
+    uint16_t target = torqueToFanTarget(torque); // flipped
+
+    // Send command to fan controller with built-in rate limiting
+    if (p_fanZ && p_fanZ->isOpen())
+    {
+        p_fanZ->moveFan(target);
+        return false; // Success
+    }
+    else
+    {
+        return true;
+    }
+}
 void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
 {
-    double torqueCmdX, torqueCmdY, torqueCmdZ;
-    double velCmdX, velCmdY, velCmdZ;
+    double torqueCmdY, velCmdY;
 
-    logger.debug("Applying torque: ", torque);
+    logger.debug("Applying torque with hybrid system: ", torque);
+    // Apply X torque using X fan
+    if (moveXFanWithTorque(torque(0)))
+        logger.warning("X Fan controller not available or not open");
 
-    if (moveXMomentumWheelWithTorque(torque(0), deltaT, &torqueCmdX, &velCmdX))
-        logger.warning("Saturate X Momentum Wheel");
+    // Apply Y torque using Y momentum wheel
     if (moveYMomentumWheelWithTorque(torque(1), deltaT, &torqueCmdY, &velCmdY))
         logger.warning("Saturate Y Momentum Wheel");
-    if (moveZMomentumWheelWithTorque(torque(2), deltaT, &torqueCmdX, &velCmdZ))
-        logger.warning("Saturate Z Momentum Wheel");
 
-    logger.debug("Successfully applied torque");
+    // Apply Z torque using Z fan
+    if (moveZFanWithTorque(torque(2)))
+        logger.warning("Z Fan controller not available or not open");
 
-    // Get the data
-    xMomentumWheelVel = (*p_mmX).GetVelocityIs();
+    logger.debug("Successfully applied hybrid torque");
+
+    // Get the Y momentum wheel data (fans handle their own logging)
     yMomentumWheelVel = (*p_mmY).GetVelocityIs();
-    zMomentumWheelVel = (*p_mmZ).GetVelocityIs();
-    // Log the data
-    momentumWheelsLog << left << setw(w) << GetTimeNow() << left << setw(w) << torqueCmdX << left << setw(w) << velCmdX << left << setw(w) << xMomentumWheelVel
-                      << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel
-                      << left << setw(w) << torqueCmdZ << left << setw(w) << velCmdZ << left << setw(w) << zMomentumWheelVel << endl;
-    logger.debug("Momentum Wheel Data Logged");
+
+    // Log the momentum wheel data (Y axis only, fans log separately)
+    momentumWheelsLog << left << setw(w) << GetTimeNow()
+                      << left << setw(w) << "N/A" << left << setw(w) << "N/A" << left << setw(w) << "N/A"                    // X fan data
+                      << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel // Y wheel data
+                      << left << setw(w) << "N/A" << left << setw(w) << "N/A" << left << setw(w) << "N/A" << endl;           // Z fan data
+
+    logger.debug("Hybrid actuator data logged");
 }
 
 void AttitudeControl::setHoldingPosition(Matrix3d position)
@@ -694,3 +697,25 @@ std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMa
 
     return std::make_pair(rotAxis, rotAngle);
 };
+
+uint16_t AttitudeControl::torqueToFanTarget(double torque)
+{
+    // Clamp to [-1, 1] range
+
+    double speed = AttitudeConfig::torqueToSpeed * (abs(torque));
+    double neutral = 2048;
+    double deadband = 75;
+    double target;
+    if (torque > 0)
+        target = neutral + deadband + speed;
+    else
+        target = neutral - deadband + speed;
+
+    // Ensure target is within valid range (should already be, but safety check)
+    if (target < 1448)
+        target = 1448;
+    if (target > 2648)
+        target = 2648;
+
+    return static_cast<uint16_t>(target);
+}

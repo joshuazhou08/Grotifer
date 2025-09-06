@@ -6,6 +6,8 @@
 #include <cstdlib>
 
 #define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
+#define X_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464559-if01"
+#define Z_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464472-if01"
 // Constructor
 Devices::Devices()
 {
@@ -94,21 +96,32 @@ bool Devices::initMaxonMotors()
             yMotorParams.portName = &availPortNameList[i][0];
             Logger::info("[Maxon Motor] Y found");
         }
-        if (serialNo[i] == zMotorParams.serialNo)
+        /* if (serialNo[i] == zMotorParams.serialNo)
         {
             zMotorParams.keyHandle = keyHandle[i];
             zMotorParams.portName = &availPortNameList[i][0];
             Logger::info("[Maxon Motor] Z found");
-        }
+        } */
     }
 
     // initialize Maxon objects
     p_mmX = std::make_unique<MaxonMotor>(eposErrFile, xMotorParams, 'v');
     p_mmY = std::make_unique<MaxonMotor>(eposErrFile, yMotorParams, 'v');
-    p_mmZ = std::make_unique<MaxonMotor>(eposErrFile, zMotorParams, 'v');
+    // p_mmZ = std::make_unique<MaxonMotor>(eposErrFile, zMotorParams, 'v');
 
     Logger::info("[Maxon Motor] Has been initialized!");
 
+    return true;
+}
+
+bool Devices::initFanControllers()
+{
+    p_fanX = std::make_unique<FanController>(X_FAN_SERIAL_PORT, 9600);
+    p_fanZ = std::make_unique<FanController>(Z_FAN_SERIAL_PORT, 9600);
+
+    p_fanX->moveFan(2048);
+    p_fanZ->moveFan(2048);
+    Logger::info("[Fan Controllers] X and Z fans initialized");
     return true;
 }
 
@@ -165,4 +178,22 @@ std::unique_ptr<ModbusSunSensor> Devices::releaseSunSensor()
         Logger::error("Sun Sensor has not been initialized!");
     }
     return std::move(p_sunSensor);
+}
+
+std::unique_ptr<FanController> Devices::releaseFanX()
+{
+    if (!p_fanX)
+    {
+        Logger::error("Fan X has not been initialized!");
+    }
+    return std::move(p_fanX);
+}
+
+std::unique_ptr<FanController> Devices::releaseFanZ()
+{
+    if (!p_fanZ)
+    {
+        Logger::error("Fan Z has not been initialized!");
+    }
+    return std::move(p_fanZ);
 }

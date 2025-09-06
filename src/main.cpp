@@ -48,7 +48,7 @@ int main()
     Devices devices;
 
     if (!devices.initLabJack() || !devices.initInclinometer() ||
-        !devices.initSunSensor() || !devices.initMaxonMotors())
+        !devices.initSunSensor() || !devices.initMaxonMotors() || !devices.initFanControllers())
     {
         return -1;
     }
@@ -61,7 +61,9 @@ int main()
         devices.releaseMMY(),
         devices.releaseMMZ(),
         devices.releaseSunSensor(),
-        devices.releaseInclinometer());
+        devices.releaseInclinometer(),
+        devices.releaseFanX(),
+        devices.releaseFanZ());
 
     // Initialize Task List
     constexpr int NUM_TASKS = 1;
