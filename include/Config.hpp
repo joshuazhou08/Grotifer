@@ -20,8 +20,8 @@ struct AttitudeConfig
 {
 
     // Initial Kick Paramters
-    static inline constexpr double iniKickDuration = 250.0e-3;
-    static inline const Vector3d iniTorqueVec{0.0, 0.0, 0.1};
+    static inline constexpr double iniKickDuration = 1000.0e-3;
+    static inline const Vector3d iniTorqueVec{0.5, 0.5, 0.5};
 
     // Detumbling Parameters
     static inline constexpr double detumblingMaxDuration = 10;
@@ -29,7 +29,7 @@ struct AttitudeConfig
     // --- Flags For Configuring Behavior --- //
     static inline constexpr bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
 
-    static inline constexpr double deltaTaskTime = 75e-3;
+    static inline constexpr double deltaTaskTime = 50e-3;
 
     // --- Momentum Wheels Configurations --- //
     static inline constexpr double momOfInertiaX = 3.6383e-5; // Moment of inertia for X, [kg.m^2]
@@ -41,10 +41,13 @@ struct AttitudeConfig
     static inline constexpr double momOfInertiaZ = 3.6383e-5; // Moment of inertia for Z, [kg.m^2]
     static inline constexpr int16_t maxVelZ = 7500;           // Maximum speed for Z-momentum wheel, [rpm]
 
+    // Fans
+    static inline constexpr double torqueToSpeed = 40000;
+
     static inline constexpr double fc = 4.0; // Cut off frequency for angular velocity filtering
 
     // --- Angular velocity loop gain constants --- //
-    static inline constexpr double xVelocityK_p = 0.175;
+    static inline constexpr double xVelocityK_p = 0.2; // 0.2 works
     static inline constexpr double xVelocityK_i = 1.5e-3 * xVelocityK_p;
     static inline constexpr double xVelocityhLim = 0.5;
     static inline constexpr double xVelocitylLim = -0.5;
@@ -56,7 +59,7 @@ struct AttitudeConfig
     static inline constexpr double yVelocitylLim = -1.0;
     static inline constexpr double yVelocityK_d = 0;
 
-    static inline constexpr double zVelocityK_p = 0.2;
+    static inline constexpr double zVelocityK_p = 0.1;
     static inline constexpr double zVelocityK_i = 1.5e-3 * zVelocityK_p;
     static inline constexpr double zVelocityhLim = 0.5;
     static inline constexpr double zVelocitylLim = -0.5;
@@ -64,19 +67,19 @@ struct AttitudeConfig
 
     // --- Position loop gain constants --- //
 
-    static inline constexpr double xPositionK_p = 0.1;
+    static inline constexpr double xPositionK_p = 0.02;
     static inline constexpr double xPositionK_i = 0 * xPositionK_p;
     static inline constexpr double xPositionhLim = 0.5;
     static inline constexpr double xPositionlLim = -0.5;
     static inline constexpr double xPositionK_d = 0.1;
 
-    static inline constexpr double yPositionK_p = 0.1;
+    static inline constexpr double yPositionK_p = 0.2;
     static inline constexpr double yPositionK_i = 0 * yPositionK_p;
     static inline constexpr double yPositionhLim = 1.0;
     static inline constexpr double yPositionlLim = -1.0;
     static inline constexpr double yPositionK_d = 0.1;
 
-    static inline constexpr double zPositionK_p = 0.2;
+    static inline constexpr double zPositionK_p = 0.02;
     static inline constexpr double zPositionK_i = 0 * zPositionK_p;
     static inline constexpr double zPositionhLim = 0.5;
     static inline constexpr double zPositionlLim = -0.5;
