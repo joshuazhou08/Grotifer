@@ -210,3 +210,40 @@ protected:
     uint32_t p_startSpeed;      // Starting speed, [microstep/10000sec]
     uint8_t p_maxCurr = 200;    // Current limit, [mA]
 };
+
+class FanController
+{
+public:
+    FanController(const char *device, uint32_t baudRate = 9600);
+    ~FanController();
+
+    bool isOpen() const { return fd >= 0; }
+    void closePort();
+    int getFd() const { return fd; }
+
+    // send a 12-bit target directly (unchanged)
+    int setTarget(uint16_t target);
+
+    // move fan with rate limiting and target management
+    void moveFan(uint16_t target);
+
+    int getTarget();
+    int getFeedback();
+
+    int openSerialPort(const char *device, uint32_t baudRate);
+
+    uint16_t minTarget = 1448;
+    uint16_t maxTarget = 2648;
+    uint16_t neutral = 2048;
+
+private:
+    int fd;
+    int writePort(uint8_t *buffer, size_t size);
+    ssize_t readPort(uint8_t *buffer, size_t size);
+    int getVariable(uint8_t offset, uint8_t *buffer, uint8_t length);
+
+    // Rate limiting state variables
+    int last_target;
+    double last_send_time;
+    bool first_send;
+};
