@@ -306,7 +306,7 @@ int AttitudeControl::Run()
 
                 // Use parameters from current rotation command
                 double moveVelocity = currentRotationCommand.velocity;
-                double moveAcceleration = currentRotationCommand.acceleration;
+                double moveAcceleration = currentRotationCommand.acc>eleration;
 
                 double accelDuration = abs(moveVelocity / moveAcceleration) + 2 * deltaTaskTime;
                 double constantDuration = abs(deltaTheta / moveVelocity) + 2 * deltaTaskTime;
@@ -709,7 +709,7 @@ uint16_t AttitudeControl::torqueToFanTarget(double torque)
     if (torque > 0)
         target = neutral + deadband + speed;
     else
-        target = neutral - deadband + speed;
+        target = neutral - deadband - speed;
 
     // Ensure target is within valid range (should already be, but safety check)
     if (target < 1448)
