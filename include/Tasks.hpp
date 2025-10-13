@@ -66,7 +66,6 @@ private:
     double rotAngle;
 
     // for calculating movement profiles
-    Vector3d refAngularVelocityVec{{0.0, 0.0, 0.0}};
     double thetaProf, wProf, eProf;
     Vector3d angularVelocityErrorVec{{0.0, 0.0, 0.0}};
 
@@ -180,4 +179,12 @@ private:
      * @return Fan target value [1448, 2648]
      */
     uint16_t torqueToFanTarget(double torque);
+
+    /**
+     * @brief uses a cascaded controller to output the torque signal to follow a target
+     * @param target Where you want to be
+     * @param current Where you currently are
+     * @return torque to apply
+     */
+    Vector3d cascadeControl(Matrix3d target, Matrix3d current, Vector3d refAngularVelocityVec);
 };

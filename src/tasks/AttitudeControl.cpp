@@ -229,25 +229,7 @@ int AttitudeControl::Run()
         angularVelocityVec = emaFilter3d(AttitudeConfig::fc, time - preTime, angularVelocityVec, preAngularVelocityVec); // Use Exponential-moving-average filter
         logger.debug("Angular Velocity Vector Calculated");
 
-        // Log the data
-        angularVelLog << left << setw(w) << GetTimeNow() << left << setw(w) << angularVelocityVec(0)
-                      << left << setw(w) << angularVelocityVec(1)
-                      << left << setw(w) << angularVelocityVec(2)
-                      << left << setw(w) << refAngularVelocityVec(0)
-                      << left << setw(w) << refAngularVelocityVec(1)
-                      << left << setw(w) << refAngularVelocityVec(2)
-                      << left << setw(w) << angularVelocityErrorVec(0)
-                      << left << setw(w) << angularVelocityErrorVec(1)
-                      << left << setw(w) << angularVelocityErrorVec(2)
-                      << left << setw(w) << Rad2Deg(rotAngle) << left << setw(w) << Rad2Deg(thetaProf) << left << setw(w) << wProf << left << setw(w) << eProf << endl;
-
-        attitudeLog << left << setw(w) << GetTimeNow() << left << setw(w) << bodyX(0) << left << setw(w) << bodyX(1) << left << setw(w) << bodyX(2)
-                    << left << setw(w) << bodyY(0) << left << setw(w) << bodyY(1) << left << setw(w) << bodyY(2)
-                    << left << setw(w) << bodyZ(0) << left << setw(w) << bodyZ(1) << left << setw(w) << bodyZ(2) << endl;
-
-        sensorLog << left << setw(w) << GetTimeNow() << left << setw(w) << Rad2Deg(thxIncl) << left << setw(w) << Rad2Deg(thzIncl)
-                  << left << setw(w) << Rad2Deg(thySun) << left << setw(w) << Rad2Deg(thzSun)
-                  << left << setw(w) << Rad2Deg(thxEuler) << left << setw(w) << Rad2Deg(thyEuler) << left << setw(w) << Rad2Deg(thzEuler) << endl;
+        // TODO: Add logging
 
         logger.debug("Attitude Data Logged");
 
@@ -306,7 +288,7 @@ int AttitudeControl::Run()
 
                 // Use parameters from current rotation command
                 double moveVelocity = currentRotationCommand.velocity;
-                double moveAcceleration = currentRotationCommand.acc>eleration;
+                double moveAcceleration = currentRotationCommand.acceleration;
 
                 double accelDuration = abs(moveVelocity / moveAcceleration) + 2 * deltaTaskTime;
                 double constantDuration = abs(deltaTheta / moveVelocity) + 2 * deltaTaskTime;
@@ -403,14 +385,10 @@ int AttitudeControl::Run()
         double time = GetTimeNow();
         double deltaT = time - preTimeHoldingPos;
 
-        // Calculating the pi signal
-        auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(holdingPosition, currentOrientation);
-        Vector3d signal = currentOrientation.transpose() * (rotAxis * rotAngle);
+        Vector3d refAngularVelocityVec{{0.0, 0.0, 0.0}}; // we want it to be 0 when holding position
 
-        Vector3d torque;
-        torque(0) = -AttitudeConfig::xVelocityK_p * angularVelocityVec(0) + xPositionLoop.PICalculation(0, signal(0));
-        torque(1) = -AttitudeConfig::yVelocityK_p * angularVelocityVec(1) + yPositionLoop.PICalculation(0, signal(1));
-        torque(2) = -AttitudeConfig::zVelocityK_p * angularVelocityVec(2) + zPositionLoop.PICalculation(0, signal(2));
+        Vector3d torque = cascadeControl(holdingPosition, currentOrientation, refAngularVelocityVec);
+
         applyTorque(torque, deltaT);
 
         nextState = DETERMINING_ATTITUDE;
@@ -445,29 +423,13 @@ int AttitudeControl::Run()
             movingProfileAngle = deltaTheta;
         }
 
-        refAngularVelocityVec = currentOrientation.transpose() * (movingProfileRotAxis * movingProfileVelocity);
+        Vector3d refAngularVelocityVec = currentOrientation.transpose() * (movingProfileRotAxis * movingProfileVelocity);
 
         // Get the profile orientation by taking the starting orientation and rotating it by the profile angle
         AngleAxis aa(movingProfileAngle, movingProfileRotAxis);
         Matrix3d movingProfileOrientation = startingOrientation * aa.toRotationMatrix();
 
-        // Calculate the position error
-        auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(movingProfileOrientation, currentOrientation);
-        rotAxis = rotAxis.normalized();
-        Vector3d positionError = currentOrientation.transpose() * (rotAxis * rotAngle);
-
-        // Outer loop output
-        Vector3d omegaRefBody;
-        omegaRefBody(0) = xPositionLoop.PICalculation(0, positionError(0));
-        omegaRefBody(1) = yPositionLoop.PICalculation(0, positionError(1));
-        omegaRefBody(2) = zPositionLoop.PICalculation(0, positionError(2));
-        Vector3d omegaCmdBody = omegaRefBody + refAngularVelocityVec;
-
-        // Feed into inner velocity loop
-        Vector3d torque;
-        torque(0) = xVelocityLoop.PICalculation(omegaCmdBody(0), angularVelocityVec(0));
-        torque(1) = yVelocityLoop.PICalculation(omegaCmdBody(1), angularVelocityVec(1));
-        torque(2) = zVelocityLoop.PICalculation(omegaCmdBody(2), angularVelocityVec(2));
+        Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec);
 
         angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
 
@@ -598,7 +560,7 @@ bool AttitudeControl::moveZFanWithTorque(double torque)
 {
 
     // Convert to fan target using helper function
-    uint16_t target = torqueToFanTarget(torque); // flipped
+    uint16_t target = torqueToFanTarget(-1 * torque); // flipped
 
     // Send command to fan controller with built-in rate limiting
     if (p_fanZ && p_fanZ->isOpen())
@@ -679,11 +641,34 @@ void AttitudeControl::prependFindSunRotation()
     logger.info("  Total commands in queue: ", rotationQueue.size());
 }
 
+Vector3d AttitudeControl::cascadeControl(Matrix3d target, Matrix3d current, Vector3d refAngularVelocityVec)
+{
+    // Calculate the position error
+    auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(target, current);
+    rotAxis = rotAxis.normalized();
+    Vector3d positionError = current.transpose() * (rotAxis * rotAngle);
+
+    // Outer loop output
+    Vector3d omegaRefBody;
+    omegaRefBody(0) = xPositionLoop.PICalculation(0, positionError(0));
+    omegaRefBody(1) = yPositionLoop.PICalculation(0, positionError(1));
+    omegaRefBody(2) = zPositionLoop.PICalculation(0, positionError(2));
+    Vector3d omegaCmdBody = omegaRefBody + refAngularVelocityVec;
+
+    // Feed into inner velocity loop
+    Vector3d torque;
+    torque(0) = xVelocityLoop.PICalculation(omegaCmdBody(0), angularVelocityVec(0));
+    torque(1) = yVelocityLoop.PICalculation(omegaCmdBody(1), angularVelocityVec(1));
+    torque(2) = zVelocityLoop.PICalculation(omegaCmdBody(2), angularVelocityVec(2));
+
+    return torque;
+};
+
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
 {
     double a = exp(-2 * M_PI * fc * dt);
     return (1.0 - a) * curVector + a * prevVector;
-};
+}
 
 // Helper function to calculate rotation axis and angle between two rotation matrices
 std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
@@ -692,11 +677,10 @@ std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMa
     AngleAxisd angleAxis{rotation};
 
     Vector3d rotAxis = angleAxis.axis();
-    rotAxis(0) *= -1; // Flip X component. We should figure out why its flipped
     double rotAngle = angleAxis.angle();
 
     return std::make_pair(rotAxis, rotAngle);
-};
+}
 
 uint16_t AttitudeControl::torqueToFanTarget(double torque)
 {
