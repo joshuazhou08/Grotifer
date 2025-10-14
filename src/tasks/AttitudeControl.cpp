@@ -1,6 +1,8 @@
 #include "tasks/AttitudeControlTask.hpp"
 #include "core/Logger.hpp"
 #include "solvers/TriadSolver.hpp"
+#include "solvers/AngularVelocitySolver.hpp"
+#include "utils/RotationHelpers.hpp"
 #include "Config.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -217,8 +219,7 @@ int AttitudeControl::Run()
         else
         {
             double deltaT = time - preTime;                                                                                             // Calculate the actual delta_t between two consecutive calls
-            angularVelocityVec = currentOrientation.transpose() * AngularVel::GetAngularVelVec(prevRotMat, currentOrientation, deltaT); // convert angular velocity to body fixed frame
-            rotAngle = AngularVel::RotAngleAboutRotAxis(currentOrientation);
+            angularVelocityVec = currentOrientation.transpose() * AngularVelocitySolver::solve(prevRotMat, currentOrientation, deltaT); // convert angular velocity to body fixed frame
             prevRotMat = currentOrientation;
         }
 
@@ -669,7 +670,7 @@ Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVect
 // Helper function to calculate rotation axis and angle between two rotation matrices
 std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
 {
-    Matrix3d rotation = AngularVel::RotMatBodyToBody(fromMatrix, toMatrix);
+    Matrix3d rotation = RotationHelpers::BodyToBody(fromMatrix, toMatrix);
     AngleAxisd angleAxis{rotation};
 
     Vector3d rotAxis = angleAxis.axis();
