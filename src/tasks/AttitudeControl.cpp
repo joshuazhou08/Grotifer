@@ -1,6 +1,7 @@
 #include "tasks/AttitudeControlTask.hpp"
+#include "core/Logger.hpp"
+#include "solvers/TriadSolver.hpp"
 #include "Config.hpp"
-#include "Logger.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <filesystem>
@@ -194,7 +195,7 @@ int AttitudeControl::Run()
         thzIncl = Deg2Rad((*p_inclinometer).GetAngleX());
 
         // Calculating the attitude
-        currentOrientation = BackwardSol::AlgebraicSolutionMatrix(thxIncl, thzIncl, thySun, thzSun);
+        currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
         logger.debug("Orientation Matrix Calculated");
 
         // Get the axes
@@ -202,11 +203,6 @@ int AttitudeControl::Run()
         bodyX = currentOrientation * Vector3d(1.0, 0.0, 0.0);
         bodyY = currentOrientation * Vector3d(0.0, 1.0, 0.0);
         bodyZ = currentOrientation * Vector3d(0.0, 0.0, 1.0);
-
-        // Calculate Euler Angles
-        double thxEuler, thyEuler, thzEuler;
-        BackwardSol::GetEulerFromRot(currentOrientation, &thxEuler, &thyEuler, &thzEuler);
-        logger.debug("Euler Angles Calculated");
 
         double time = GetTimeNow(); // Get the current time
 
