@@ -59,7 +59,6 @@ int main()
     AttitudeControl attitudeControl(
         devices.releaseMMX(),
         devices.releaseMMY(),
-        devices.releaseMMZ(),
         devices.releaseSunSensor(),
         devices.releaseInclinometer(),
         devices.releaseFanX(),

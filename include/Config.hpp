@@ -21,13 +21,13 @@ struct AttitudeConfig
 
     // Initial Kick Paramters
     static inline constexpr double iniKickDuration = 1000.0e-3;
-    static inline const Vector3d iniTorqueVec{0.5, 0.5, 0.5};
+    static inline const Vector3d iniTorqueVec{0.04, 0.0, 0.0};
 
     // Detumbling Parameters
     static inline constexpr double detumblingMaxDuration = 10;
 
     // --- Flags For Configuring Behavior --- //
-    static inline constexpr bool initialKick = true; // Perform initial kick to demonstrate detumbling capabilities
+    static inline constexpr bool initialKick = false; // Perform initial kick to demonstrate detumbling capabilities
 
     static inline constexpr double deltaTaskTime = 50e-3;
 
@@ -47,7 +47,7 @@ struct AttitudeConfig
     static inline constexpr double fc = 4.0; // Cut off frequency for angular velocity filtering
 
     // --- Angular velocity loop gain constants --- //
-    static inline constexpr double xVelocityK_p = 0.2; // 0.2 works
+    static inline constexpr double xVelocityK_p = 0.06; // 0.2 works
     static inline constexpr double xVelocityK_i = 1.5e-3 * xVelocityK_p;
     static inline constexpr double xVelocityhLim = 0.5;
     static inline constexpr double xVelocitylLim = -0.5;
@@ -59,7 +59,7 @@ struct AttitudeConfig
     static inline constexpr double yVelocitylLim = -1.0;
     static inline constexpr double yVelocityK_d = 0;
 
-    static inline constexpr double zVelocityK_p = 0.1;
+    static inline constexpr double zVelocityK_p = 0.08;
     static inline constexpr double zVelocityK_i = 1.5e-3 * zVelocityK_p;
     static inline constexpr double zVelocityhLim = 0.5;
     static inline constexpr double zVelocitylLim = -0.5;
@@ -67,8 +67,8 @@ struct AttitudeConfig
 
     // --- Position loop gain constants --- //
 
-    static inline constexpr double xPositionK_p = 0.02;
-    static inline constexpr double xPositionK_i = 0 * xPositionK_p;
+    static inline constexpr double xPositionK_p = 0.4;
+    static inline constexpr double xPositionK_i = 1.5e-3 * xPositionK_p;
     static inline constexpr double xPositionhLim = 0.5;
     static inline constexpr double xPositionlLim = -0.5;
     static inline constexpr double xPositionK_d = 0.1;
@@ -80,7 +80,7 @@ struct AttitudeConfig
     static inline constexpr double yPositionK_d = 0.1;
 
     static inline constexpr double zPositionK_p = 0.02;
-    static inline constexpr double zPositionK_i = 0 * zPositionK_p;
+    static inline constexpr double zPositionK_i = 1.5e-3 * zPositionK_p;
     static inline constexpr double zPositionhLim = 0.5;
     static inline constexpr double zPositionlLim = -0.5;
     static inline constexpr double zPositionK_d = 0.1;
@@ -99,9 +99,9 @@ struct AttitudeConfig
     static inline std::vector<RotationCommand> getRotationQueue()
     {
         return {
-            RotationCommand(Vector3d{0.0, 1.0, 0.0}, M_PI / 12.0, vel, accel),  // IN RADIANS
-            RotationCommand(Vector3d{0.0, -1.0, 0.0}, M_PI / 12.0, vel, accel), // IN RADIANS
-            RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 12.0, vel, accel)   // IN RADIANS
+            RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 30.0, vel, accel) // IN RADIANS
+            // RotationCommand(Vector3d{0.0, -1.0, 0.0}, M_PI / 12.0, vel, accel), // IN RADIANS
+            // RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 12.0, vel, accel)   // IN RADIANS
         };
     }
 };
