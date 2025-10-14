@@ -8,54 +8,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #
 set(MASTER_LIB_DIR "${CMAKE_SOURCE_DIR}/MasterLibrary")
 
-#
-# 2) Add an executable that uses your existing src/main.cpp
-#
-file(GLOB TASK_SOURCES "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
-file(GLOB MAIN_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
-set(SOURCES ${MAIN_SOURCES} ${TASK_SOURCES})
+# === Source files ===
+file(GLOB_RECURSE SRC_MAIN "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE SRC_TASKS "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
+file(GLOB_RECURSE SRC_SOLVERS "${CMAKE_SOURCE_DIR}/src/solvers/*.cpp")
+file(GLOB_RECURSE SRC_HARDWARE "${CMAKE_SOURCE_DIR}/src/hardware/*.cpp")
+
+set(SOURCES
+    ${SRC_MAIN}
+    ${SRC_TASKS}
+    ${SRC_SOLVERS}
+    ${SRC_HARDWARE}
+)
+
+# === Executable ===
 add_executable(mainExe ${SOURCES})
+
+# === Include directories ===
 target_include_directories(mainExe
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
 )
 
+# === External libraries ===
+find_package(Eigen3 REQUIRED NO_MODULE)
+target_link_libraries(mainExe PRIVATE Eigen3::Eigen)
 
-# 4) If your hardware code (Actuators.cpp, Sensors.cpp, u6.c) also
-#    needs to be compiled, create a static library target out of them:
-add_library(GrotiferHardwareStatic STATIC
-    "${MASTER_LIB_DIR}/GrotiferHardware/Actuators.cpp"
-    "${MASTER_LIB_DIR}/GrotiferHardware/Sensors.cpp"
-    "${MASTER_LIB_DIR}/GrotiferHardware/u6.c"
-)
-
-file(GLOB_RECURSE SOFTWARE_SOURCES
-    "${MASTER_LIB_DIR}/GrotiferSoftware/*.cpp"
-    "${MASTER_LIB_DIR}/GrotiferSoftware/*.c"
-)
-add_library(GrotiferSoftwareStatic STATIC ${SOFTWARE_SOURCES})
-
-target_include_directories(GrotiferSoftwareStatic PUBLIC
-    "${MASTER_LIB_DIR}/GrotiferSoftware"
-    "${MASTER_LIB_DIR}/GrotiferSoftware/AttitudeDetermination"
-    "${MASTER_LIB_DIR}/GrotiferSoftware/SoftwareFunctions"
-)
-
-# Ensure those .cpp/.c files can find their own headers:
-target_include_directories(GrotiferHardwareStatic PUBLIC
-    "${MASTER_LIB_DIR}/GrotiferHardware"
-)
-
-target_include_directories(mainExe PUBLIC
-    "${MASTER_LIB_DIR}"
-)
-
-# Link that static hardware library into your mainExe:
-target_link_libraries(mainExe PUBLIC
-    GrotiferHardwareStatic
-    GrotiferSoftwareStatic
-    stdc++fs
-)
 
 # 5) If you have prebuilt libraries (either .so or .lib/.dll),
 #    decide which directory to search. Example using “x86” vs “Arm” subfolders:
