@@ -1,7 +1,6 @@
 #pragma once
 
 #include <fstream>
-#include "GrotiferMaster.hpp"
 #include "Config.hpp"
 
 class Devices

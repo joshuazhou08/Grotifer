@@ -1,4 +1,4 @@
-#include "hardware/MaxonMotor.hpp"
+#include "hardware/actuators/MaxonMotor.hpp"
 #include "../../MasterLibrary/GrotiferHardware/Definitions.h"
 #include <iostream>
 #include <cmath>

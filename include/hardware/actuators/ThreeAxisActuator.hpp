@@ -1,6 +1,6 @@
 #pragma once
-#include "hardware/Actuator.hpp"
-#include "hardware/enums.hpp"
+#include "hardware/actuators/Actuator.hpp"
+#include "hardware/actuators/enums.hpp"
 #include <Eigen/Dense>
 #include <memory>
 #include <array>

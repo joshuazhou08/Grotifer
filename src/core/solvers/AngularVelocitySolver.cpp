@@ -1,5 +1,5 @@
-#include "solvers/AngularVelocitySolver.hpp"
-#include "utils/RotationHelpers.hpp"
+#include "core/solvers/AngularVelocitySolver.hpp"
+#include "core/utils/RotationHelpers.hpp"
 #include <Eigen/Geometry>
 #include <cmath>
 

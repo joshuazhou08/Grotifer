@@ -1,6 +1,6 @@
 // Header files for all the tasks
 #pragma once
-#include "BaseTask.hpp" // BaseTask class declaration
+#include "core/BaseTask.hpp" // BaseTask class declaration
 #include <fstream>
 #include <queue>
 #include "Config.hpp"

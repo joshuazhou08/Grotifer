@@ -1,9 +1,8 @@
 #include <fstream>
 #include <iostream>
 #include "Devices.hpp"
-#include "GrotiferMaster.hpp"
 #include <cstdlib>
-
+#include <memory>
 using namespace std;
 
 #define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"

@@ -1,5 +1,5 @@
 #pragma once
-#include "hardware/Actuator.hpp"
+#include "hardware/actuators/Actuator.hpp"
 #include <Eigen/Dense>
 #include <cstdint>
 

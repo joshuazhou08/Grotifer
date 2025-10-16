@@ -1,9 +1,9 @@
-﻿#include "BaseTask.hpp"
-#include "Tasks.hpp"
+﻿#include "core/BaseTask.hpp"
+#include "tasks/AttitudeControl.hpp"
 #include "Config.hpp"
-#include "hardware/MaxonMotor.hpp"
-#include "hardware/Fan.hpp"
-#include "hardware/ThreeAxisActuator.hpp"
+#include "hardware/actuators/MaxonMotor.hpp"
+#include "hardware/actuators/Fan.hpp"
+#include "hardware/actuators/ThreeAxisActuator.hpp"
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>

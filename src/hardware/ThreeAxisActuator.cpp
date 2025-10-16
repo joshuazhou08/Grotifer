@@ -1,4 +1,4 @@
-#include "hardware/ThreeAxisActuator.hpp"
+#include "hardware/actuators/ThreeAxisActuator.hpp"
 
 using namespace Eigen;
 

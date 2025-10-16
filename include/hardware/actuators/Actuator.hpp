@@ -1,6 +1,6 @@
 #pragma once
 #include <Eigen/Dense>
-#include "hardware/enums.hpp"
+#include "hardware/actuators/enums.hpp"
 
 // a single actuator (fan, momentum wheel, magnetorquer, etc)
 class Actuator {

@@ -1,7 +1,7 @@
 #include "tasks/AttitudeControlTask.hpp"
-#include "solvers/TriadSolver.hpp"
-#include "solvers/AngularVelocitySolver.hpp"
-#include "utils/RotationHelpers.hpp"
+#include "core/solvers/TriadSolver.hpp"
+#include "core/solvers/AngularVelocitySolver.hpp"
+#include "core/utils/RotationHelpers.hpp"
 #include "Config.hpp"
 #include <iostream>
 #include <stdexcept>

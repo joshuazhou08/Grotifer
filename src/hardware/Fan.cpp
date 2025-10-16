@@ -1,4 +1,4 @@
-#include "hardware/Fan.hpp"
+#include "hardware/actuators/Fan.hpp"
 #include <fcntl.h>      
 #include <unistd.h>     
 #include <termios.h>    

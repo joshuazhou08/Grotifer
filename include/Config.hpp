@@ -1,7 +1,5 @@
 #pragma once
 
-#include "GrotiferMaster.hpp"
-#include "Logger.hpp"
 #include <vector>
 #include <queue>
 
