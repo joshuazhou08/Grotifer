@@ -110,6 +110,13 @@ private:
         yPositionLoop, zPositionLoop;
 
     /**
+     * @brief Applies torque with sign correction for Y and Z axes
+     * @param torque The torque vector to apply
+     * @param deltaT The change in time from previous state
+     */
+    void applyTorque(Vector3d torque, double deltaT);
+
+    /**
      * @brief Sets the holding position and configures the right flags
      * @param position The position to hold
      */

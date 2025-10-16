@@ -309,13 +309,13 @@ int AttitudeControl::Run()
         double deltaT = time - preTimeInitializingMotion;
         if (time < iniKickEndTime)
         {
-            threeAxisActuator_.applyTorque(AttitudeConfig::iniTorqueVec, deltaT);
+            applyTorque(AttitudeConfig::iniTorqueVec, deltaT);
         }
 
         else
         {
             Vector3d zeroVector{{0.0, 0.0, 0.0}};
-            threeAxisActuator_.applyTorque(zeroVector, deltaT);
+            applyTorque(zeroVector, deltaT);
         }
         if (time + preTimeInitializingMotion >= iniKickEndTime * 2)
         {
@@ -342,7 +342,7 @@ int AttitudeControl::Run()
         torque(1) = yVelocityLoop.PICalculation(0, angularVelocityVec(1));
         torque(2) = zVelocityLoop.PICalculation(0, angularVelocityVec(2));
 
-        threeAxisActuator_.applyTorque(torque, deltaT);
+        applyTorque(torque, deltaT);
 
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
 
@@ -378,7 +378,7 @@ int AttitudeControl::Run()
 
         Vector3d torque = cascadeControl(holdingPosition, currentOrientation, refAngularVelocityVec);
 
-        threeAxisActuator_.applyTorque(torque, deltaT);
+        applyTorque(torque, deltaT);
 
         nextState = DETERMINING_ATTITUDE;
         nextStateName = "Determining Attitude";
@@ -422,7 +422,7 @@ int AttitudeControl::Run()
 
         angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
 
-        threeAxisActuator_.applyTorque(torque, deltaT);
+        applyTorque(torque, deltaT);
 
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
         if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
@@ -457,6 +457,16 @@ int AttitudeControl::Run()
 
     AuditDataTrail();
     return 0;
+}
+
+void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
+{
+    // Apply sign correction for Y and Z axes (hardware mounting orientation)
+    Vector3d correctedTorque = torque;
+    correctedTorque(1) = -torque(1);  // Y axis needs to be flipped
+    correctedTorque(2) = -torque(2);  // Z axis needs to be flipped
+    
+    threeAxisActuator_.applyTorque(correctedTorque, deltaT);
 }
 
 void AttitudeControl::setHoldingPosition(Matrix3d position)
