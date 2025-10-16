@@ -18,19 +18,13 @@ using namespace Eigen;
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
 // Forward declaration for new timeout velocity command to motor
-AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
-                                 std::unique_ptr<MaxonMotor> mmY,
+AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
                                  std::unique_ptr<ModbusSunSensor> sunSensor,
-                                 std::unique_ptr<LabJackInclinometer> inclinometer,
-                                 std::unique_ptr<FanController> fanX,
-                                 std::unique_ptr<FanController> fanZ)
+                                 std::unique_ptr<LabJackInclinometer> inclinometer)
     : BaseTask("AttitudeControl", 0),
-      p_mmX(std::move(mmX)),
-      p_mmY(std::move(mmY)),
+      threeAxisActuator_(threeAxisActuator),
       p_sunSensor(std::move(sunSensor)),
       p_inclinometer(std::move(inclinometer)),
-      p_fanX(std::move(fanX)),
-      p_fanZ(std::move(fanZ)),
       logger("Attitude Control"),
       xVelocityLoop(
           AttitudeConfig::xVelocityK_p,
@@ -80,7 +74,12 @@ AttitudeControl::AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
     logger.info("Logs Initialized");
 
     deltaTaskTime = AttitudeConfig::deltaTaskTime;
-    maxAccCmdY = (*p_mmY).GetMaxTorque() / AttitudeConfig::momOfInertiaY;
+    
+    // Get max torque from Y actuator (momentum wheel) if it's a MaxonMotor
+    MaxonMotor* yMotor = dynamic_cast<MaxonMotor*>(threeAxisActuator_.getYActuator());
+    if (yMotor) {
+        maxAccCmdY = yMotor->getMaxTorque() / AttitudeConfig::momOfInertiaY;
+    }
 
     // Initialize rotation queue
     auto rotations = AttitudeConfig::getRotationQueue();
@@ -103,9 +102,8 @@ AttitudeControl::~AttitudeControl()
         angularVelLog.close();
     if (momentumWheelsLog.is_open())
         momentumWheelsLog.close();
-    p_fanX->moveFan(2048);
-    p_fanZ->moveFan(2048);
-    logger.info("killed fans");
+    
+    logger.info("AttitudeControl shutting down");
 }
 
 void AttitudeControl::InitializeLogs()
@@ -317,13 +315,13 @@ int AttitudeControl::Run()
         double deltaT = time - preTimeInitializingMotion;
         if (time < iniKickEndTime)
         {
-            applyTorque(AttitudeConfig::iniTorqueVec, deltaT);
+            threeAxisActuator_.applyTorque(AttitudeConfig::iniTorqueVec, deltaT);
         }
 
         else
         {
             Vector3d zeroVector{{0.0, 0.0, 0.0}};
-            applyTorque(zeroVector, deltaT);
+            threeAxisActuator_.applyTorque(zeroVector, deltaT);
         }
         if (time + preTimeInitializingMotion >= iniKickEndTime * 2)
         {
@@ -350,7 +348,7 @@ int AttitudeControl::Run()
         torque(1) = yVelocityLoop.PICalculation(0, angularVelocityVec(1));
         torque(2) = zVelocityLoop.PICalculation(0, angularVelocityVec(2));
 
-        applyTorque(torque, deltaT);
+        threeAxisActuator_.applyTorque(torque, deltaT);
 
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
 
@@ -386,7 +384,7 @@ int AttitudeControl::Run()
 
         Vector3d torque = cascadeControl(holdingPosition, currentOrientation, refAngularVelocityVec);
 
-        applyTorque(torque, deltaT);
+        threeAxisActuator_.applyTorque(torque, deltaT);
 
         nextState = DETERMINING_ATTITUDE;
         nextStateName = "Determining Attitude";
@@ -430,7 +428,7 @@ int AttitudeControl::Run()
 
         angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
 
-        applyTorque(torque, deltaT);
+        threeAxisActuator_.applyTorque(torque, deltaT);
 
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
         if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
@@ -465,140 +463,6 @@ int AttitudeControl::Run()
 
     AuditDataTrail();
     return 0;
-}
-
-bool AttitudeControl::moveXMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal)
-{
-    bool saturateXMomtWheelFlag = false;
-    double accCmd = 0; // Command value for acceleration
-    int velCmd = 0;
-
-    double torqueCmd = torque;
-
-    accCmd = torqueCmd / AttitudeConfig::momOfInertiaX;
-    velCmd = xMomentumWheelVel + (accCmd * deltaT) * (30 / M_PI); // conversion factor
-
-    if (accCmd >= maxAccCmdX)
-        accCmd = maxAccCmdX;
-    else if (accCmd <= -maxAccCmdX)
-        accCmd = -maxAccCmdX;
-
-    // Check for saturation
-    if (velCmd > AttitudeConfig::maxVelX)
-    {
-        saturateXMomtWheelFlag = true;
-        velCmd = AttitudeConfig::maxVelX;
-    }
-    else if (velCmd < -AttitudeConfig::maxVelX)
-    {
-        saturateXMomtWheelFlag = true;
-        velCmd = -AttitudeConfig::maxVelX;
-    }
-
-    (*p_mmX).RunWithVelocity(velCmd);
-    *torqueCmdVal = torqueCmd;
-    *velCmdVal = velCmd;
-
-    xMomentumWheelVel = velCmd;
-    return saturateXMomtWheelFlag;
-}
-
-bool AttitudeControl::moveYMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal)
-{
-    bool saturateYMomtWheelFlag = false;
-    double accCmd = 0; // Command value for acceleration
-    int velCmd = 0;
-    double torqueCmd = -torque; // y must be flipped
-    accCmd = torqueCmd / AttitudeConfig::momOfInertiaY;
-    velCmd = yMomentumWheelVel + (accCmd * deltaT) * (30 / M_PI); // conversion factor
-
-    if (accCmd >= maxAccCmdY)
-        accCmd = maxAccCmdY;
-    else if (accCmd <= -maxAccCmdY)
-        accCmd = -maxAccCmdY;
-
-    // Check for saturation
-    if (velCmd > AttitudeConfig::maxVelY)
-    {
-        saturateYMomtWheelFlag = true;
-        velCmd = AttitudeConfig::maxVelY;
-    }
-    else if (velCmd < -AttitudeConfig::maxVelY)
-    {
-        saturateYMomtWheelFlag = true;
-        velCmd = -AttitudeConfig::maxVelY;
-    }
-    (*p_mmY).RunWithVelocity(velCmd);
-    *torqueCmdVal = torqueCmd;
-    *velCmdVal = velCmd;
-
-    yMomentumWheelVel = velCmd;
-    return saturateYMomtWheelFlag;
-}
-
-bool AttitudeControl::moveXFanWithTorque(double torque)
-{
-    // Convert to fan target using helper function
-    uint16_t target = torqueToFanTarget(torque);
-
-    // Send command to fan controller with built-in rate limiting
-    if (p_fanX && p_fanX->isOpen())
-    {
-        p_fanX->moveFan(target);
-        return false; // Success
-    }
-    else
-    {
-        return true; // Fan controller not available or not open
-    }
-}
-
-bool AttitudeControl::moveZFanWithTorque(double torque)
-{
-
-    // Convert to fan target using helper function
-    uint16_t target = torqueToFanTarget(-1 * torque); // flipped
-
-    // Send command to fan controller with built-in rate limiting
-    if (p_fanZ && p_fanZ->isOpen())
-    {
-        p_fanZ->moveFan(target);
-        return false; // Success
-    }
-    else
-    {
-        return true;
-    }
-}
-void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
-{
-    double torqueCmdY, velCmdY;
-
-    logger.debug("Applying torque with hybrid system: ", torque);
-    // Apply X torque using X fan
-    if (moveXFanWithTorque(torque(0)))
-        logger.warning("X Fan controller not available or not open");
-
-    // Apply Y torque using Y momentum wheel
-    if (moveYMomentumWheelWithTorque(torque(1), deltaT, &torqueCmdY, &velCmdY))
-        logger.warning("Saturate Y Momentum Wheel");
-
-    // Apply Z torque using Z fan
-    if (moveZFanWithTorque(torque(2)))
-        logger.warning("Z Fan controller not available or not open");
-
-    logger.debug("Successfully applied hybrid torque");
-
-    // Get the Y momentum wheel data (fans handle their own logging)
-    yMomentumWheelVel = (*p_mmY).GetVelocityIs();
-
-    // Log the momentum wheel data (Y axis only, fans log separately)
-    momentumWheelsLog << left << setw(w) << GetTimeNow()
-                      << left << setw(w) << "N/A" << left << setw(w) << "N/A" << left << setw(w) << "N/A"                    // X fan data
-                      << left << setw(w) << torqueCmdY << left << setw(w) << velCmdY << left << setw(w) << yMomentumWheelVel // Y wheel data
-                      << left << setw(w) << "N/A" << left << setw(w) << "N/A" << left << setw(w) << "N/A" << endl;           // Z fan data
-
-    logger.debug("Hybrid actuator data logged");
 }
 
 void AttitudeControl::setHoldingPosition(Matrix3d position)
@@ -679,24 +543,3 @@ std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMa
     return std::make_pair(rotAxis, rotAngle);
 }
 
-uint16_t AttitudeControl::torqueToFanTarget(double torque)
-{
-    // Clamp to [-1, 1] range
-
-    double speed = AttitudeConfig::torqueToSpeed * (abs(torque));
-    double neutral = 2048;
-    double deadband = 75;
-    double target;
-    if (torque > 0)
-        target = neutral + deadband + speed;
-    else
-        target = neutral - deadband - speed;
-
-    // Ensure target is within valid range (should already be, but safety check)
-    if (target < 1448)
-        target = 1448;
-    if (target > 2648)
-        target = 2648;
-
-    return static_cast<uint16_t>(target);
-}

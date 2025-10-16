@@ -13,12 +13,9 @@
 class AttitudeControl : public BaseTask
 {
 public:
-    AttitudeControl(std::unique_ptr<MaxonMotor> mmX,
-                    std::unique_ptr<MaxonMotor> mmY,
+    AttitudeControl(ThreeAxisActuator& threeAxisActuator,
                     std::unique_ptr<ModbusSunSensor> sunSensor,
-                    std::unique_ptr<LabJackInclinometer> inclinometer,
-                    std::unique_ptr<FanController> fanX,
-                    std::unique_ptr<FanController> fanZ);
+                    std::unique_ptr<LabJackInclinometer> inclinometer);
 
     ~AttitudeControl() override;
     int Run() override;
@@ -38,18 +35,12 @@ private:
     std::ofstream angularVelLog;
     std::ofstream momentumWheelsLog;
 
-    // momentum wheels
-    std::unique_ptr<MaxonMotor> p_mmX;
-    std::unique_ptr<MaxonMotor> p_mmY;
-    std::unique_ptr<MaxonMotor> p_mmZ;
+    // Three-axis actuator system (fans and momentum wheels)
+    ThreeAxisActuator& threeAxisActuator_;
 
-    // sun sensors
+    // Sensors
     std::unique_ptr<ModbusSunSensor> p_sunSensor;
     std::unique_ptr<LabJackInclinometer> p_inclinometer;
-
-    // fan controllers
-    std::unique_ptr<FanController> p_fanX;
-    std::unique_ptr<FanController> p_fanZ;
 
     // max accelerations for momentum wheels
     double maxAccCmdX, maxAccCmdY, maxAccCmdZ;
@@ -122,46 +113,6 @@ private:
     Logger::LoggerInstance logger;
 
     /**
-     * @brief Applies a torque using the y momentum wheel and the x and z fans
-     * @param torque The torque vector to apply
-     * @param deltaT The change in time from previous state
-     */
-    void applyTorque(Vector3d torque, double deltaT);
-
-    /**
-     * @brief Moves the X momentum wheel with a given torque
-     * @param torque The torque to apply
-     * @param deltaT Time over which to apply the torque
-     * @param torqueCmdVal Used to extract the final torque commmand
-     * @param velCmdVal Used to extract the final velocity command
-     * @returns True if the X momentum wheel is saturated
-     */
-    bool moveXMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
-    /**
-     * @brief Moves the Y momentum wheel with a given torque
-     * @param torque The torque to apply
-     * @param deltaT Time over which to apply the torque
-     * @param torqueCmdVal Used to extract the final torque commmand
-     * @param velCmdVal Used to extract the final velocity command
-     * @returns True if the X momentum wheel is saturated
-     */
-    bool moveYMomentumWheelWithTorque(double torque, double deltaT, double *torqueCmdVal, double *velCmdVal);
-
-    /**
-     * @brief Moves the X fan with a given torque command
-     * @param torque The torque command to apply to the fan
-     * @returns True if the fan controller is not available or not open
-     */
-    bool moveXFanWithTorque(double torque);
-
-    /**
-     * @brief Moves the Z fan with a given torque command
-     * @param torque The torque command to apply to the fan
-     * @returns True if the fan controller is not available or not open
-     */
-    bool moveZFanWithTorque(double torque);
-
-    /**
      * @brief Sets the holding position and configures the right flags
      * @param position The position to hold
      */
@@ -172,13 +123,6 @@ private:
      * This calculates the rotation needed to go from current orientation to identity matrix
      */
     void prependFindSunRotation();
-
-    /**
-     * @brief Converts normalized torque to fan target value using dead band compensation
-     * @param u Normalized torque value [-1, 1]
-     * @return Fan target value [1448, 2648]
-     */
-    uint16_t torqueToFanTarget(double torque);
 
     /**
      * @brief uses a cascaded controller to output the torque signal to follow a target
