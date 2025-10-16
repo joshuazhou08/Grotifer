@@ -1,5 +1,4 @@
 #include "tasks/AttitudeControlTask.hpp"
-#include "core/Logger.hpp"
 #include "solvers/TriadSolver.hpp"
 #include "solvers/AngularVelocitySolver.hpp"
 #include "utils/RotationHelpers.hpp"
@@ -16,16 +15,15 @@ using namespace std;
 using namespace Eigen;
 // Forward delcaration for helpers
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
-std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
+pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
-                                 std::unique_ptr<ModbusSunSensor> sunSensor,
-                                 std::unique_ptr<LabJackInclinometer> inclinometer)
+                                 unique_ptr<ModbusSunSensor> sunSensor,
+                                 unique_ptr<LabJackInclinometer> inclinometer)
     : BaseTask("AttitudeControl", 0),
       threeAxisActuator_(threeAxisActuator),
-      p_sunSensor(std::move(sunSensor)),
-      p_inclinometer(std::move(inclinometer)),
-      logger("Attitude Control"),
+      p_sunSensor(move(sunSensor)),
+      p_inclinometer(move(inclinometer)),
       xVelocityLoop(
           AttitudeConfig::xVelocityK_p,
           AttitudeConfig::xVelocityK_i,
@@ -68,10 +66,10 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
 
     if (!attitudeLog || !sensorLog || !angularVelLog || !momentumWheelsLog)
     {
-        throw std::runtime_error("Failed to open one or more log files in AttitudeControl.");
+        throw runtime_error("Failed to open one or more log files in AttitudeControl.");
     }
 
-    logger.info("Logs Initialized");
+    cout << "[AttitudeControl] Logs initialized" << endl;
 
     deltaTaskTime = AttitudeConfig::deltaTaskTime;
     
@@ -89,7 +87,7 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
     }
     rotationQueueInitialized = true;
 
-    logger.info("Moves planned");
+    cout << "[AttitudeControl] Moves planned" << endl;
 }
 
 AttitudeControl::~AttitudeControl()
@@ -103,17 +101,17 @@ AttitudeControl::~AttitudeControl()
     if (momentumWheelsLog.is_open())
         momentumWheelsLog.close();
     
-    logger.info("AttitudeControl shutting down");
+    cout << "[AttitudeControl] Shutting down" << endl;
 }
 
 void AttitudeControl::InitializeLogs()
 {
-    std::filesystem::create_directories("logs");
+    filesystem::create_directories("logs");
 
-    attitudeLog.open("logs/attitude.txt", std::ios::out | std::ios::trunc);
-    sensorLog.open("logs/sensors.txt", std::ios::out | std::ios::trunc);
-    angularVelLog.open("logs/angular_velocity.txt", std::ios::out | std::ios::trunc);
-    momentumWheelsLog.open("logs/momentum_wheels.txt", std::ios::out | std::ios::trunc);
+    attitudeLog.open("logs/attitude.txt", ios::out | ios::trunc);
+    sensorLog.open("logs/sensors.txt", ios::out | ios::trunc);
+    angularVelLog.open("logs/angular_velocity.txt", ios::out | ios::trunc);
+    momentumWheelsLog.open("logs/momentum_wheels.txt", ios::out | ios::trunc);
 
     attitudeLog << left << setw(w) << "Time (s)" << left << setw(w) << "Xb_x" << left << setw(w) << "Xb_y" << left << setw(w) << "Xb_z"
                 << left << setw(w) << "Yb_x" << left << setw(w) << "Yb_y" << left << setw(w) << "Yb_z"
@@ -155,7 +153,7 @@ int AttitudeControl::Run()
             preTimeInitializingMotion = GetTimeNow();
             nextState = INITIALIZING_MOTION;
             nextStateName = "Initializing Motion";
-            logger.info("Finished Intializing. Going into initial kick.");
+            cout << "[AttitudeControl] Finished initializing. Going into initial kick" << endl;
         }
         else
         {
@@ -164,7 +162,7 @@ int AttitudeControl::Run()
             preTimeDetumbling = GetTimeNow();
             nextState = DETERMINING_ATTITUDE;
             nextStateName = "Determining Attitude";
-            logger.info("Finished Intializing. Going into detumble.");
+            cout << "[AttitudeControl] Finished initializing. Going into detumble" << endl;
         }
 
         break;
@@ -177,7 +175,7 @@ int AttitudeControl::Run()
         int sunInfo;
         if (!(*p_sunSensor).GetAngles(thzSun, thySun, sunInfo))
         {
-            logger.error("Fail to read Sun Sensor!");
+            cerr << "[AttitudeControl] Failed to read Sun Sensor" << endl;
         }
 
         thySun = Deg2Rad(thySun); // Get Y-angle from Sun Sensor
@@ -185,7 +183,7 @@ int AttitudeControl::Run()
 
         if (sunInfo != 0)
         {
-            logger.info("Sun Message: ", (*p_sunSensor).GetAddMessage(sunInfo));
+            cout << "[AttitudeControl] Sun Message: " << (*p_sunSensor).GetAddMessage(sunInfo) << endl;
         }
 
         // Read the Inclinometer
@@ -196,7 +194,6 @@ int AttitudeControl::Run()
 
         // Calculating the attitude
         currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
-        logger.debug("Orientation Matrix Calculated");
 
         // Get the axes
         Vector3d bodyX, bodyY, bodyZ;
@@ -222,11 +219,8 @@ int AttitudeControl::Run()
         }
 
         angularVelocityVec = emaFilter3d(AttitudeConfig::fc, time - preTime, angularVelocityVec, preAngularVelocityVec); // Use Exponential-moving-average filter
-        logger.debug("Angular Velocity Vector Calculated");
 
         // TODO: Add logging
-
-        logger.debug("Attitude Data Logged");
 
         // Update
         preAngularVelocityVec = angularVelocityVec;
@@ -266,18 +260,18 @@ int AttitudeControl::Run()
                     deltaTheta = currentRotationCommand.angle;
                     movingProfileRotAxis = currentRotationCommand.axis.normalized();
 
-                    logger.info("Executing Rotation Command:");
-                    logger.info("  Axis: ", movingProfileRotAxis);
-                    logger.info("  Angle (rad): ", deltaTheta);
-                    logger.info("  Angle (deg): ", Rad2Deg(deltaTheta));
-                    logger.info("  Velocity: ", currentRotationCommand.velocity);
-                    logger.info("  Acceleration: ", currentRotationCommand.acceleration);
-                    logger.info("  Remaining moves in queue: ", rotationQueue.size());
+                    cout << "[AttitudeControl] Executing Rotation Command:" << endl;
+                    cout << "[AttitudeControl]   Axis: " << movingProfileRotAxis.transpose() << endl;
+                    cout << "[AttitudeControl]   Angle (rad): " << deltaTheta << endl;
+                    cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(deltaTheta) << endl;
+                    cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << endl;
+                    cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << endl;
+                    cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << endl;
                 }
                 else
                 {
                     deltaTheta = 0; // No move configured
-                    logger.info("No rotation configured - queue is empty");
+                    cout << "[AttitudeControl] No rotation configured - queue is empty" << endl;
                 }
                 double time = GetTimeNow();
 
@@ -294,10 +288,10 @@ int AttitudeControl::Run()
                 movingProfileDecelerationEndTime = time + accelDuration + constantDuration + deccelDuration;
                 movingProfileCalculated = true;
 
-                logger.info("Moving Profile Calculated");
-                logger.info("Moving Profile Acceleration End Time: ", movingProfileAccelerationEndTime);
-                logger.info("Moving Profile Constant End Time: ", movingProfileConstantEndTime);
-                logger.info("Moving Profile Deceleration End Time: ", movingProfileDecelerationEndTime);
+                cout << "[AttitudeControl] Moving Profile Calculated" << endl;
+                cout << "[AttitudeControl]   Acceleration End Time: " << movingProfileAccelerationEndTime << endl;
+                cout << "[AttitudeControl]   Constant End Time: " << movingProfileConstantEndTime << endl;
+                cout << "[AttitudeControl]   Deceleration End Time: " << movingProfileDecelerationEndTime << endl;
             }
         }
 
@@ -326,7 +320,7 @@ int AttitudeControl::Run()
         if (time + preTimeInitializingMotion >= iniKickEndTime * 2)
         {
             iniMotionDone = true;
-            logger.info("Initial Kick Done");
+            cout << "[AttitudeControl] Initial Kick Done" << endl;
             detumblingEndTime = GetTimeNow() + AttitudeConfig::detumblingMaxDuration;
             preTimeDetumbling = GetTimeNow();
         }
@@ -360,11 +354,11 @@ int AttitudeControl::Run()
             if (AttitudeConfig::enableFindSun)
             {
                 prependFindSunRotation();
-                logger.info("Detumbling Done - Find Sun rotation added to queue");
+                cout << "[AttitudeControl] Detumbling Done - Find Sun rotation added to queue" << endl;
             }
             else
             {
-                logger.info("Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations");
+                cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
         }
 
@@ -438,7 +432,7 @@ int AttitudeControl::Run()
             // Check if there are more moves in the queue
             if (!rotationQueue.empty())
             {
-                logger.info("Current move done! Preparing next move from queue.");
+                cout << "[AttitudeControl] Current move done! Preparing next move from queue" << endl;
                 movingProfileCalculated = false;
                 movingDone = false; // Reset to continue with next move
             }
@@ -447,7 +441,7 @@ int AttitudeControl::Run()
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
-                logger.info("All moves completed! Holding final position.");
+                cout << "[AttitudeControl] All moves completed! Holding final position" << endl;
                 movingProfileCalculated = false;
             }
         }
@@ -470,7 +464,7 @@ void AttitudeControl::setHoldingPosition(Matrix3d position)
     holdingPosition = position;
     holdingPositionSet = true;
     preTimeHoldingPos = GetTimeNow();
-    logger.info("holding position:", holdingPosition);
+    cout << "[AttitudeControl] Holding position: " << endl << holdingPosition << endl;
 }
 
 void AttitudeControl::prependFindSunRotation()
@@ -482,7 +476,7 @@ void AttitudeControl::prependFindSunRotation()
     RotationCommand findSunCommand(rotAxis.normalized(), rotAngle, refVelocity, refAcceleration);
 
     // Create a temporary queue to prepend the find sun command
-    std::queue<RotationCommand> tempQueue;
+    queue<RotationCommand> tempQueue;
     tempQueue.push(findSunCommand);
 
     // Move all existing commands to temp queue
@@ -493,13 +487,13 @@ void AttitudeControl::prependFindSunRotation()
     }
 
     // Replace the original queue with temp queue
-    rotationQueue = std::move(tempQueue);
+    rotationQueue = move(tempQueue);
 
-    logger.info("Find Sun rotation prepended to queue:");
-    logger.info("  Axis: ", rotAxis.normalized());
-    logger.info("  Angle (rad): ", rotAngle);
-    logger.info("  Angle (deg): ", Rad2Deg(rotAngle));
-    logger.info("  Total commands in queue: ", rotationQueue.size());
+    cout << "[AttitudeControl] Find Sun rotation prepended to queue:" << endl;
+    cout << "[AttitudeControl]   Axis: " << rotAxis.normalized().transpose() << endl;
+    cout << "[AttitudeControl]   Angle (rad): " << rotAngle << endl;
+    cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(rotAngle) << endl;
+    cout << "[AttitudeControl]   Total commands in queue: " << rotationQueue.size() << endl;
 }
 
 Vector3d AttitudeControl::cascadeControl(Matrix3d target, Matrix3d current, Vector3d refAngularVelocityVec)
@@ -532,7 +526,7 @@ Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVect
 }
 
 // Helper function to calculate rotation axis and angle between two rotation matrices
-std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
+pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
 {
     Matrix3d rotation = RotationHelpers::BodyToBody(fromMatrix, toMatrix);
     AngleAxisd angleAxis{rotation};
@@ -540,6 +534,6 @@ std::pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMa
     Vector3d rotAxis = angleAxis.axis();
     double rotAngle = angleAxis.angle();
 
-    return std::make_pair(rotAxis, rotAngle);
+    return make_pair(rotAxis, rotAngle);
 }
 

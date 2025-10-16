@@ -1,7 +1,6 @@
 ﻿#include "BaseTask.hpp"
 #include "Tasks.hpp"
 #include "Config.hpp"
-#include "Logger.hpp"
 #include "hardware/MaxonMotor.hpp"
 #include "hardware/Fan.hpp"
 #include "hardware/ThreeAxisActuator.hpp"
@@ -11,6 +10,8 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+
+using namespace std;
 
 #define X_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464559-if01"
 #define Z_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464472-if01"
@@ -106,9 +107,6 @@ bool wasEKeyPressed()
 
 int main()
 {
-    // Initialize the logger
-    Logger::init("logs/debug.log", Logger::Level::INFO);
-    
     // Initialize all the devices (will be removed)
     Devices devices;
 
@@ -122,34 +120,34 @@ int main()
 
     Fan xFan(X_FAN_SERIAL_PORT, 9600, Axis::X);
     if (!xFan.isOpen()) {
-        Logger::error("Failed to initialize X Fan (new implementation)");
+        cerr << "[Main] Failed to initialize X Fan" << endl;
         return -1;
     }
-    Logger::info("X Fan initialized with new Fan class");
+    cout << "[Main] X Fan initialized" << endl;
     
 
     MaxonParameters yMotorParams = makeYMotorParams();
     MaxonMotor yMotor(yMotorParams, Axis::Y);
     
     if (!yMotor.isOpen()) {
-        Logger::error("Failed to initialize Y Momentum Wheel (new implementation)");
+        cerr << "[Main] Failed to initialize Y Momentum Wheel" << endl;
         return -1;
     }
-    Logger::info("Y Momentum Wheel initialized with new MaxonMotor class");
+    cout << "[Main] Y Momentum Wheel initialized" << endl;
 
     Fan zFan(Z_FAN_SERIAL_PORT, 9600, Axis::Z);
     if (!zFan.isOpen()) {
-        Logger::error("Failed to initialize Z Fan (new implementation)");
+        cerr << "[Main] Failed to initialize Z Fan" << endl;
         return -1;
     }
-    Logger::info("Z Fan initialized with new Fan class");
+    cout << "[Main] Z Fan initialized" << endl;
     
     // Create three-axis actuator system
     ThreeAxisActuator threeAxisActuator(xFan, yMotor, zFan);
-    Logger::info("ThreeAxisActuator created with X Fan, Y Wheel, Z Fan");
+    cout << "[Main] ThreeAxisActuator created with X Fan, Y Wheel, Z Fan" << endl;
 
     // Sleep to let us read the device initialize logs
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    this_thread::sleep_for(chrono::seconds(3));
 
     AttitudeControl attitudeControl(
         threeAxisActuator,
@@ -171,14 +169,11 @@ int main()
     {
         if (wasEKeyPressed())
         {
-            Logger::info("[KILLING] Kill signal detected (E pressed).");
+            cout << "[Main] Kill signal detected (E pressed)" << endl;
             break;
         }
         taskTable[i]->Run();
         i = (i + 1) % NUM_TASKS;
     }
-    setNonBlockingInput(false); // Enable non-blocking input for smooth kill signal
-    
-    // Cleanup logger
-    Logger::cleanup();
+    setNonBlockingInput(false); // Restore terminal settings
 }

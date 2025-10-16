@@ -109,9 +109,6 @@ private:
     PIControl xPositionLoop,
         yPositionLoop, zPositionLoop;
 
-    // Named logger instance
-    Logger::LoggerInstance logger;
-
     /**
      * @brief Sets the holding position and configures the right flags
      * @param position The position to hold
