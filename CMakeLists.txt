@@ -1,17 +1,14 @@
 ﻿cmake_minimum_required(VERSION 3.14)
 project(GrotiferCMake LANGUAGES CXX C)
+
+# === C++ Standard ===
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#
-# 1) Tell CMake where your “MasterLibrary/” lives,
-#    i.e. where GrotiferMaster.hpp and GrotiferHardware/… are
-#
-set(MASTER_LIB_DIR "${CMAKE_SOURCE_DIR}/MasterLibrary")
 
-# === Source files ===
-file(GLOB_RECURSE SRC_MAIN "${CMAKE_SOURCE_DIR}/src/*.cpp")
-file(GLOB_RECURSE SRC_TASKS "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
-file(GLOB_RECURSE SRC_SOLVERS "${CMAKE_SOURCE_DIR}/src/solvers/*.cpp")
+# === Base Source Layout ===
+file(GLOB_RECURSE SRC_MAIN     "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE SRC_TASKS    "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
+file(GLOB_RECURSE SRC_SOLVERS  "${CMAKE_SOURCE_DIR}/src/solvers/*.cpp")
 file(GLOB_RECURSE SRC_HARDWARE "${CMAKE_SOURCE_DIR}/src/hardware/*.cpp")
 
 set(SOURCES
@@ -21,73 +18,74 @@ set(SOURCES
     ${SRC_HARDWARE}
 )
 
-# === Executable ===
+# === Executable Target ===
 add_executable(mainExe ${SOURCES})
 
-# === Include directories ===
+# === Include Directories ===
+# Your headers live in include/, vendor headers in MasterLibrary/GrotiferHardware
+set(MASTER_LIB_DIR "${CMAKE_SOURCE_DIR}/MasterLibrary")
+
 target_include_directories(mainExe
     PRIVATE
         ${CMAKE_SOURCE_DIR}/include
+        
 )
 
-# === External libraries ===
+# === External Dependencies ===
 find_package(Eigen3 REQUIRED NO_MODULE)
 target_link_libraries(mainExe PRIVATE Eigen3::Eigen)
 
+# === System-installed Hardware Libraries ===
+# These .so files should be installed on the system (e.g. /usr/local/lib)
+list(APPEND CMAKE_LIBRARY_PATH
+    /usr/lib/x86_64-linux-gnu
+    /usr/lib/arm-linux-gnueabihf
+    /usr/lib/aarch64-linux-gnu
+)
 
-# 5) If you have prebuilt libraries (either .so or .lib/.dll),
-#    decide which directory to search. Example using “x86” vs “Arm” subfolders:
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm" OR
-    CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+find_library(LIB_EPOSCMD NAMES EposCmd REQUIRED)
+find_library(LIB_LABJACK NAMES labjackusb REQUIRED)
+find_library(LIB_FTD2XX  NAMES ftd2xx REQUIRED)
+find_library(LIB_MODBUS  NAMES modbus REQUIRED)
+# === Sanity Checks ===
+if (NOT LIB_EPOSCMD)
+    message(FATAL_ERROR "libEposCmd.so not found. Please install the Maxon EPOS SDK.")
+endif()
+
+if (NOT LIB_LABJACK)
+    message(FATAL_ERROR "liblabjackusb.so not found. Please install the LabJack USB SDK.")
+endif()
+
+if (NOT LIB_FTD2XX)
+    message(FATAL_ERROR "libftd2xx.so not found. Please install the FTDI D2XX SDK.")
+endif()
+
+if (NOT LIB_MODBUS)
+    message(FATAL_ERROR "libmodbus.so not found. Try: sudo apt install libmodbus-dev")
+endif()
+
+# === Link All Required Libraries ===
+target_link_libraries(mainExe PRIVATE
+    ${LIB_EPOSCMD}
+    ${LIB_LABJACK}
+    ${LIB_FTD2XX}
+    ${LIB_MODBUS}
+)
+
+# === External Libraries ===
+add_subdirectory(external/labjack)
+target_link_libraries(mainExe PRIVATE labjack_u6)
+
+# === Architecture Printout (Optional) ===
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(HW_ARCH "Arm")
 else()
     set(HW_ARCH "x86")
 endif()
+message(STATUS "Building for architecture: ${HW_ARCH}")
 
-# Print the selected architecture
-message(STATUS "Selected hardware architecture: ${HW_ARCH}")
-
-set(HARDWARE_SOLIB_DIR
-    "${MASTER_LIB_DIR}/GrotiferHardware/HardwareSoLib/${HW_ARCH}"
-)
-
-# Sanity check:
-if (NOT EXISTS "${HARDWARE_SOLIB_DIR}")
-    message(FATAL_ERROR
-        "Cannot find HardwareSoLib folder: ${HARDWARE_SOLIB_DIR}"
-    )
-endif()
-file(GLOB SOLIBS "${HARDWARE_SOLIB_DIR}/*")
-message(STATUS "Available libraries in ${HARDWARE_SOLIB_DIR}: ${SOLIBS}")
-
-# 6) Tell the linker to search HARDWARE_SOLIB_DIR at link time
-link_directories(
-    "${HARDWARE_SOLIB_DIR}"
-)
-
-# 7) Explicitly link the libraries you need.
-#    If you have:
-#      libEposCmd.so   (Linux)  → link with “EposCmd”
-#      libftd2xx.so    → link with “ftd2xx”
-#      liblabjackusb.so→ link with “labjackusb”
-#      libmodbus.so    → link with “modbus”
-#
-#    Or, if you’re on Windows with .lib/.dll:
-#      EposCmd.lib     → link with “EposCmd”
-#      ftd2xx.lib      → link with “ftd2xx”
-#      labjackusb.lib  → link with “labjackusb”
-#      modbus.lib      → link with “modbus”
-#
-target_link_libraries(mainExe PUBLIC
-    "${HARDWARE_SOLIB_DIR}/libEposCmd.so"
-    "${HARDWARE_SOLIB_DIR}/libftd2xx.so"
-    "${HARDWARE_SOLIB_DIR}/liblabjackusb.so"
-    "${HARDWARE_SOLIB_DIR}/libmodbus.so"
-)
-
-# 8) (Optional) Embed a runtime path so you don’t have to set LD_LIBRARY_PATH
-#    at runtime (mostly relevant on Linux/macOS). On Windows this does nothing.
+# === RPATH Settings (so you don't need LD_LIBRARY_PATH manually) ===
 set_target_properties(mainExe PROPERTIES
     BUILD_WITH_INSTALL_RPATH ON
-    INSTALL_RPATH "${HARDWARE_SOLIB_DIR}"
+    INSTALL_RPATH "/usr/local/lib;/usr/lib"
 )
