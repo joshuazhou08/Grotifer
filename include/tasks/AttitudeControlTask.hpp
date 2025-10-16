@@ -4,9 +4,13 @@
 #include "core/control/PIControl.hpp"
 #include <fstream>
 #include <queue>
+#include <Eigen/Dense>
 #include "Config.hpp"
-#include "GrotiferMaster.hpp"
 #include "hardware/sensors/Sensors.hpp"
+#include "hardware/actuators/ThreeAxisActuator.hpp"
+
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
 
 // Control loops configuration struct
 struct ControlLoops {

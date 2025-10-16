@@ -8,8 +8,12 @@ using namespace std;
 // Constructor - opens LabJack U6 device and initializes with timer/counter pin offset
 LabJackU6::LabJackU6(long tcPinOffset)
     : handle_(nullptr),
-      tcPinOffset_(tcPinOffset)
+      tcPinOffset_(tcPinOffset),
+      caliInfo_(nullptr)
 {
+    // Allocate calibration info
+    caliInfo_ = new u6CalibrationInfo();
+    
     // Open the connection
     if (openConnection()) {
         // Get calibration information from device
@@ -21,6 +25,12 @@ LabJackU6::LabJackU6(long tcPinOffset)
 }
 
 LabJackU6::~LabJackU6() {
+    // Cleanup calibration info
+    if (caliInfo_ != nullptr) {
+        delete caliInfo_;
+        caliInfo_ = nullptr;
+    }
+    
     // Cleanup - could close handle here if needed
     if (handle_ != nullptr) {
         // Note: LabJack library doesn't provide a close function for USB connections
@@ -43,7 +53,7 @@ bool LabJackU6::openConnection() {
 
 // Get calibration information from the device
 void LabJackU6::getCalibrationInfo() {
-    long error = ::getCalibrationInfo(handle_, &caliInfo_);
+    long error = ::getCalibrationInfo(handle_, caliInfo_);
     if (error < 0) {
         cerr << "[LabJackU6] Failed to get calibration info, error code: " << error << endl;
     }
@@ -147,7 +157,7 @@ double LabJackU6::getCounterValueAtCounter(unsigned int counterChannel) {
 // Read raw voltage from an analog input channel
 double LabJackU6::getRawVoltageAtChannel(long channel) {
     double voltage = 0.0;
-    long error = eAIN(handle_, &caliInfo_, channel, 15, &voltage, LJ_rgBIP10V, 0, 0, 0, 0, 0);
+    long error = eAIN(handle_, caliInfo_, channel, 15, &voltage, LJ_rgBIP10V, 0, 0, 0, 0, 0);
     if (error != 0) {
         cerr << "[LabJackU6] Failed to read voltage from channel " << channel 
              << ", error code: " << error << endl;
@@ -163,7 +173,7 @@ double LabJackU6::getAveVoltageAtChannel(long channel) {
     const int numReads = 5;  // Number of reads to average
     
     for (int i = 0; i < numReads; i++) {
-        long error = eAIN(handle_, &caliInfo_, channel, 15, &tempVoltage, 
+        long error = eAIN(handle_, caliInfo_, channel, 15, &tempVoltage, 
                          LJ_rgBIP10V, 0, 0, 0, 0, 0);
         if (error != 0) {
             cerr << "[LabJackU6] Failed to read voltage from channel " << channel 

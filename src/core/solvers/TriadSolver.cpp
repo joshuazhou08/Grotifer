@@ -1,4 +1,4 @@
-#include "solvers/TriadSolver.hpp"
+#include "core/solvers/TriadSolver.hpp"
 #include <cmath>
 
 using namespace Eigen;
@@ -51,6 +51,8 @@ namespace {
 
 // ======== public API ========
 
+namespace TriadSolver {
+
 Matrix3d solve(double thxIncl, double thzIncl,
                double thySun, double thzSun)
 {
@@ -63,3 +65,5 @@ Matrix3d solve(double thxIncl, double thzIncl,
     
     return attitudeMatrix.transpose();  //Not very important, but we should try to figure out why this is returning the transpose of the correct matrix
 }
+
+} // namespace TriadSolver

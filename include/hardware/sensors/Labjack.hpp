@@ -41,7 +41,7 @@ private:
 
     // Hardware handle and calibration
     HANDLE handle_ = nullptr;
-    u6CalibrationInfo caliInfo_;
+    u6CalibrationInfo* caliInfo_ = nullptr;
 
     // Timer and counter configuration
     static const unsigned int numTimers_ = 4;

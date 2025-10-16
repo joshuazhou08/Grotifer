@@ -384,7 +384,7 @@ int AttitudeControl::Run()
 
         Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec);
 
-        angularVelocityErrorVec << xVelocityLoop.GetError(), yVelocityLoop.GetError(), zVelocityLoop.GetError();
+        angularVelocityErrorVec << xVelocityLoop.getError(), yVelocityLoop.getError(), zVelocityLoop.getError();
 
         applyTorque(torque, deltaT);
 

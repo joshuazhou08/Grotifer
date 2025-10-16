@@ -2,6 +2,10 @@
 
 #include <vector>
 #include <queue>
+#include <Eigen/Dense>
+
+using Eigen::Matrix3d;
+using Eigen::Vector3d;
 
 // Structure to define a rotation command
 struct RotationCommand

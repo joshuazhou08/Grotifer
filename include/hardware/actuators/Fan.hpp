@@ -6,7 +6,7 @@
 class Fan : public Actuator {
 public:
 
-    Fan(const char *device, uint32_t baudRate = 9600, Axis axis);
+    Fan(const char *device, uint32_t baudRate, Axis axis);
     ~Fan();
 
     void closePort();
