@@ -72,12 +72,6 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
     cout << "[AttitudeControl] Logs initialized" << endl;
 
     deltaTaskTime = AttitudeConfig::deltaTaskTime;
-    
-    // Get max torque from Y actuator (momentum wheel) if it's a MaxonMotor
-    MaxonMotor* yMotor = dynamic_cast<MaxonMotor*>(threeAxisActuator_.getYActuator());
-    if (yMotor) {
-        maxAccCmdY = yMotor->getMaxTorque() / AttitudeConfig::momOfInertiaY;
-    }
 
     // Initialize rotation queue
     auto rotations = AttitudeConfig::getRotationQueue();

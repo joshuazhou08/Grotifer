@@ -42,8 +42,6 @@ private:
     std::unique_ptr<ModbusSunSensor> p_sunSensor;
     std::unique_ptr<LabJackInclinometer> p_inclinometer;
 
-    // max accelerations for momentum wheels
-    double maxAccCmdX, maxAccCmdY, maxAccCmdZ;
 
     // for storing state to calculate angular velocity
     Matrix3d iniRotMat{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
@@ -96,12 +94,6 @@ private:
     std::queue<RotationCommand> rotationQueue;
     RotationCommand currentRotationCommand{{0.0, 0.0, 1.0}, 0.0}; // Default command
     bool rotationQueueInitialized = false;
-
-    // FOR MOTORS
-    int xMomentumWheelVel = 0;
-    int yMomentumWheelVel = 0;
-    int zMomentumWheelVel = 0;
-
     // PI control loops (position and velocity)
     PIControl xVelocityLoop,
         yVelocityLoop, zVelocityLoop;
