@@ -5,6 +5,7 @@
 #include <queue>
 #include "Config.hpp"
 #include "GrotiferMaster.hpp"
+#include "hardware/sensors/Sensors.hpp"
 
 // -----------------------
 // Attitude Control
@@ -14,8 +15,8 @@ class AttitudeControl : public BaseTask
 {
 public:
     AttitudeControl(ThreeAxisActuator& threeAxisActuator,
-                    std::unique_ptr<ModbusSunSensor> sunSensor,
-                    std::unique_ptr<LabJackInclinometer> inclinometer);
+                    Sensor& sunSensor,
+                    Sensor& inclinometer);
 
     ~AttitudeControl() override;
     int Run() override;
@@ -39,8 +40,8 @@ private:
     ThreeAxisActuator& threeAxisActuator_;
 
     // Sensors
-    std::unique_ptr<ModbusSunSensor> p_sunSensor;
-    std::unique_ptr<LabJackInclinometer> p_inclinometer;
+    Sensor& sunSensor_;
+    Sensor& inclinometer_;
 
 
     // for storing state to calculate angular velocity

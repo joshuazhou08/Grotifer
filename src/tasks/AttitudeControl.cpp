@@ -2,6 +2,9 @@
 #include "core/solvers/TriadSolver.hpp"
 #include "core/solvers/AngularVelocitySolver.hpp"
 #include "core/utils/RotationHelpers.hpp"
+#include "core/utils/TimeUtils.hpp"
+#include "core/control/PIControl.hpp"
+#include "hardware/sensors/SunSensor.hpp"
 #include "Config.hpp"
 #include <iostream>
 #include <stdexcept>
@@ -13,17 +16,19 @@
 
 using namespace std;
 using namespace Eigen;
+using namespace RotationHelpers;
+using namespace TimeUtils;
 // Forward delcaration for helpers
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
-                                 unique_ptr<ModbusSunSensor> sunSensor,
-                                 unique_ptr<LabJackInclinometer> inclinometer)
+                                 Sensor& sunSensor,
+                                 Sensor& inclinometer)
     : BaseTask("AttitudeControl", 0),
       threeAxisActuator_(threeAxisActuator),
-      p_sunSensor(move(sunSensor)),
-      p_inclinometer(move(inclinometer)),
+      sunSensor_(sunSensor),
+      inclinometer_(inclinometer),
       xVelocityLoop(
           AttitudeConfig::xVelocityK_p,
           AttitudeConfig::xVelocityK_i,
@@ -165,26 +170,20 @@ int AttitudeControl::Run()
     case DETERMINING_ATTITUDE:
     {
         // Read the Sun Sensor
-        double thzSun, thySun;
-        int sunInfo;
-        if (!(*p_sunSensor).GetAngles(thzSun, thySun, sunInfo))
-        {
-            cerr << "[AttitudeControl] Failed to read Sun Sensor" << endl;
-        }
-
-        thySun = Deg2Rad(thySun); // Get Y-angle from Sun Sensor
-        thzSun = Deg2Rad(thzSun); // Get Z-angle from Sun Sensor
-
+        double thzSun = Deg2Rad(sunSensor_.getAngleX()); // Get Z-angle from Sun Sensor (corresponds to Sun X)
+        double thySun = Deg2Rad(sunSensor_.getAngleY()); // Get Y-angle from Sun Sensor (corresponds to Sun Y)
+        
+        // Get sun sensor diagnostic info (SunSensor-specific)
+        SunSensor& sunSensor = static_cast<SunSensor&>(sunSensor_);
+        int sunInfo = sunSensor.getAddInfo();
         if (sunInfo != 0)
         {
-            cout << "[AttitudeControl] Sun Message: " << (*p_sunSensor).GetAddMessage(sunInfo) << endl;
+            cout << "[AttitudeControl] Sun Message: " << sunSensor.getAddMessage(sunInfo) << endl;
         }
 
         // Read the Inclinometer
-        double thxIncl, thzIncl;
-
-        thxIncl = Deg2Rad((*p_inclinometer).GetAngleY());
-        thzIncl = Deg2Rad((*p_inclinometer).GetAngleX());
+        double thxIncl = Deg2Rad(inclinometer_.getAngleY()); // Corresponds to Inclinometer Y
+        double thzIncl = Deg2Rad(inclinometer_.getAngleX()); // Corresponds to Inclinometer X
 
         // Calculating the attitude
         currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
@@ -532,7 +531,7 @@ Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVect
 // Helper function to calculate rotation axis and angle between two rotation matrices
 pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
 {
-    Matrix3d rotation = RotationHelpers::BodyToBody(fromMatrix, toMatrix);
+    Matrix3d rotation = BodyToBody(fromMatrix, toMatrix);
     AngleAxisd angleAxis{rotation};
 
     Vector3d rotAxis = angleAxis.axis();
