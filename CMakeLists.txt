@@ -9,14 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB_RECURSE SRC_MAIN     "${CMAKE_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE SRC_TASKS    "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
 file(GLOB_RECURSE SRC_CORE  "${CMAKE_SOURCE_DIR}/src/core/*.cpp")
-file(GLOB_RECURSE SRC_UTILS  "${CMAKE_SOURCE_DIR}/src/core/solvers*.cpp")
 file(GLOB_RECURSE SRC_HARDWARE "${CMAKE_SOURCE_DIR}/src/hardware/*.cpp")
 
 set(SOURCES
     ${SRC_MAIN}
     ${SRC_TASKS}
     ${SRC_CORE}
-    ${SRC_UTILS}
     ${SRC_HARDWARE}
 )
 
