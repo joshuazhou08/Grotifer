@@ -1,9 +1,13 @@
 ﻿#include "core/BaseTask.hpp"
-#include "tasks/AttitudeControl.hpp"
+#include "tasks/AttitudeControlTask.hpp"
 #include "Config.hpp"
 #include "hardware/actuators/MaxonMotor.hpp"
 #include "hardware/actuators/Fan.hpp"
 #include "hardware/actuators/ThreeAxisActuator.hpp"
+#include "hardware/sensors/Labjack.hpp"
+#include "hardware/sensors/SunSensor.hpp"
+#include "hardware/sensors/Inclinometer.hpp"
+#include "core/utils/TimeUtils.hpp"
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -12,9 +16,11 @@
 #include <thread>
 
 using namespace std;
+using namespace TimeUtils;
 
 #define X_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464559-if01"
 #define Z_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464472-if01"
+#define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
 
 // X Momentum Wheel parameter configuration
 MaxonParameters makeXMotorParams() {
@@ -107,18 +113,9 @@ bool wasEKeyPressed()
 
 int main()
 {
-    // Initialize all the devices (will be removed)
-    Devices devices;
-
-    if (!devices.initLabJack() || !devices.initInclinometer() ||
-        !devices.initSunSensor() || !devices.initMaxonMotors() || !devices.initFanControllers())
-    {
-        return -1;
-    }
-
     // Initialize the actuators
-
-    Fan xFan(X_FAN_SERIAL_PORT, 9600, Axis::X);
+    int fanBaudRate = 9600;
+    Fan xFan(X_FAN_SERIAL_PORT, fanBaudRate, Axis::X);
     if (!xFan.isOpen()) {
         cerr << "[Main] Failed to initialize X Fan" << endl;
         return -1;
@@ -135,7 +132,7 @@ int main()
     }
     cout << "[Main] Y Momentum Wheel initialized" << endl;
 
-    Fan zFan(Z_FAN_SERIAL_PORT, 9600, Axis::Z);
+    Fan zFan(Z_FAN_SERIAL_PORT, fanBaudRate, Axis::Z);
     if (!zFan.isOpen()) {
         cerr << "[Main] Failed to initialize Z Fan" << endl;
         return -1;
@@ -146,13 +143,80 @@ int main()
     ThreeAxisActuator threeAxisActuator(xFan, yMotor, zFan);
     cout << "[Main] ThreeAxisActuator created with X Fan, Y Wheel, Z Fan" << endl;
 
+    // Initialize the sensors and labjack
+    int pinOffset = 0;
+    LabJackU6 labJack(pinOffset);
+    if (!labJack.isOpen()) {
+        cerr << "[Main] Failed to initialize LabJack" << endl;
+        return -1;
+    }
+    cout << "[Main] LabJack initialized" << endl;
+
+    int baudRate = 115200;
+    SunSensor sunSensor(SUNSENSOR_SERIAL_PORT, baudRate);
+    if (!sunSensor.isOpen()) {
+        cerr << "[Main] Failed to initialize Sun Sensor" << endl;
+        return -1;
+    }
+    cout << "[Main] Sun Sensor initialized" << endl;
+
+    int xChannel = 0;
+    int yChannel = 1;
+    Inclinometer inclinometer(labJack, xChannel, yChannel);
+    if (!inclinometer.isOpen()) {
+        cerr << "[Main] Failed to initialize Inclinometer" << endl;
+        return -1;
+    }
+    cout << "[Main] Inclinometer initialized" << endl;
+
     // Sleep to let us read the device initialize logs
     this_thread::sleep_for(chrono::seconds(3));
 
+    // Initialize control loops
+    ControlLoops controlLoops{
+        .xVelocityLoop = PIControl(
+            AttitudeConfig::xVelocityK_p,
+            AttitudeConfig::xVelocityK_i,
+            AttitudeConfig::xVelocityhLim,
+            AttitudeConfig::xVelocitylLim,
+            AttitudeConfig::xVelocityK_d),
+        .yVelocityLoop = PIControl(
+            AttitudeConfig::yVelocityK_p,
+            AttitudeConfig::yVelocityK_i,
+            AttitudeConfig::yVelocityhLim,
+            AttitudeConfig::yVelocitylLim,
+            AttitudeConfig::yVelocityK_d),
+        .zVelocityLoop = PIControl(
+            AttitudeConfig::zVelocityK_p,
+            AttitudeConfig::zVelocityK_i,
+            AttitudeConfig::zVelocityhLim,
+            AttitudeConfig::zVelocitylLim,
+            AttitudeConfig::zVelocityK_d),
+        .xPositionLoop = PIControl(
+            AttitudeConfig::xPositionK_p,
+            AttitudeConfig::xPositionK_i,
+            AttitudeConfig::xPositionhLim,
+            AttitudeConfig::xPositionlLim,
+            AttitudeConfig::xPositionK_d),
+        .yPositionLoop = PIControl(
+            AttitudeConfig::yPositionK_p,
+            AttitudeConfig::yPositionK_i,
+            AttitudeConfig::yPositionhLim,
+            AttitudeConfig::yPositionlLim,
+            AttitudeConfig::yPositionK_d),
+        .zPositionLoop = PIControl(
+            AttitudeConfig::zPositionK_p,
+            AttitudeConfig::zPositionK_i,
+            AttitudeConfig::zPositionhLim,
+            AttitudeConfig::zPositionlLim,
+            AttitudeConfig::zPositionK_d)
+    };
+
     AttitudeControl attitudeControl(
         threeAxisActuator,
-        devices.releaseSunSensor(),
-        devices.releaseInclinometer());
+        sunSensor,
+        inclinometer,
+        controlLoops);
 
     // Initialize Task List
     constexpr int NUM_TASKS = 1;

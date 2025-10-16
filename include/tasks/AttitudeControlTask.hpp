@@ -1,11 +1,22 @@
 // Header files for all the tasks
 #pragma once
 #include "core/BaseTask.hpp" // BaseTask class declaration
+#include "core/control/PIControl.hpp"
 #include <fstream>
 #include <queue>
 #include "Config.hpp"
 #include "GrotiferMaster.hpp"
 #include "hardware/sensors/Sensors.hpp"
+
+// Control loops configuration struct
+struct ControlLoops {
+    PIControl xVelocityLoop;
+    PIControl yVelocityLoop;
+    PIControl zVelocityLoop;
+    PIControl xPositionLoop;
+    PIControl yPositionLoop;
+    PIControl zPositionLoop;
+};
 
 // -----------------------
 // Attitude Control
@@ -16,7 +27,8 @@ class AttitudeControl : public BaseTask
 public:
     AttitudeControl(ThreeAxisActuator& threeAxisActuator,
                     Sensor& sunSensor,
-                    Sensor& inclinometer);
+                    Sensor& inclinometer,
+                    ControlLoops& controlLoops);
 
     ~AttitudeControl() override;
     int Run() override;
@@ -95,12 +107,14 @@ private:
     std::queue<RotationCommand> rotationQueue;
     RotationCommand currentRotationCommand{{0.0, 0.0, 1.0}, 0.0}; // Default command
     bool rotationQueueInitialized = false;
+    
     // PI control loops (position and velocity)
-    PIControl xVelocityLoop,
-        yVelocityLoop, zVelocityLoop;
-
-    PIControl xPositionLoop,
-        yPositionLoop, zPositionLoop;
+    PIControl xVelocityLoop;
+    PIControl yVelocityLoop;
+    PIControl zVelocityLoop;
+    PIControl xPositionLoop;
+    PIControl yPositionLoop;
+    PIControl zPositionLoop;
 
     /**
      * @brief Applies torque with sign correction for Y and Z axes

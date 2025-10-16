@@ -24,47 +24,18 @@ pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix,
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
                                  Sensor& sunSensor,
-                                 Sensor& inclinometer)
+                                 Sensor& inclinometer,
+                                 ControlLoops& controlLoops)
     : BaseTask("AttitudeControl", 0),
       threeAxisActuator_(threeAxisActuator),
       sunSensor_(sunSensor),
       inclinometer_(inclinometer),
-      xVelocityLoop(
-          AttitudeConfig::xVelocityK_p,
-          AttitudeConfig::xVelocityK_i,
-          AttitudeConfig::xVelocityhLim,
-          AttitudeConfig::xVelocitylLim,
-          AttitudeConfig::xVelocityK_d),
-      yVelocityLoop(
-          AttitudeConfig::yVelocityK_p,
-          AttitudeConfig::yVelocityK_i,
-          AttitudeConfig::yVelocityhLim,
-          AttitudeConfig::yVelocitylLim,
-          AttitudeConfig::yVelocityK_d),
-      zVelocityLoop(
-          AttitudeConfig::zVelocityK_p,
-          AttitudeConfig::zVelocityK_i,
-          AttitudeConfig::zVelocityhLim,
-          AttitudeConfig::zVelocitylLim,
-          AttitudeConfig::zVelocityK_d),
-      xPositionLoop(
-          AttitudeConfig::xPositionK_p,
-          AttitudeConfig::xPositionK_i,
-          AttitudeConfig::xPositionhLim,
-          AttitudeConfig::xPositionlLim,
-          AttitudeConfig::xPositionK_d),
-      yPositionLoop(
-          AttitudeConfig::yPositionK_p,
-          AttitudeConfig::yPositionK_i,
-          AttitudeConfig::yPositionhLim,
-          AttitudeConfig::yPositionlLim,
-          AttitudeConfig::yPositionK_d),
-      zPositionLoop(
-          AttitudeConfig::zPositionK_p,
-          AttitudeConfig::zPositionK_i,
-          AttitudeConfig::zPositionhLim,
-          AttitudeConfig::zPositionlLim,
-          AttitudeConfig::zPositionK_d)
+      xVelocityLoop(controlLoops.xVelocityLoop),
+      yVelocityLoop(controlLoops.yVelocityLoop),
+      zVelocityLoop(controlLoops.zVelocityLoop),
+      xPositionLoop(controlLoops.xPositionLoop),
+      yPositionLoop(controlLoops.yPositionLoop),
+      zPositionLoop(controlLoops.zPositionLoop)
 
 {
     InitializeLogs();
@@ -331,9 +302,9 @@ int AttitudeControl::Run()
         double deltaT = time - preTimeDetumbling;
 
         Vector3d torque;
-        torque(0) = xVelocityLoop.PICalculation(0, angularVelocityVec(0));
-        torque(1) = yVelocityLoop.PICalculation(0, angularVelocityVec(1));
-        torque(2) = zVelocityLoop.PICalculation(0, angularVelocityVec(2));
+        torque(0) = xVelocityLoop.calculate(0, angularVelocityVec(0));
+        torque(1) = yVelocityLoop.calculate(0, angularVelocityVec(1));
+        torque(2) = zVelocityLoop.calculate(0, angularVelocityVec(2));
 
         applyTorque(torque, deltaT);
 
@@ -508,16 +479,16 @@ Vector3d AttitudeControl::cascadeControl(Matrix3d target, Matrix3d current, Vect
 
     // Outer loop output
     Vector3d omegaRefBody;
-    omegaRefBody(0) = xPositionLoop.PICalculation(0, positionError(0));
-    omegaRefBody(1) = yPositionLoop.PICalculation(0, positionError(1));
-    omegaRefBody(2) = zPositionLoop.PICalculation(0, positionError(2));
+    omegaRefBody(0) = xPositionLoop.calculate(0, positionError(0));
+    omegaRefBody(1) = yPositionLoop.calculate(0, positionError(1));
+    omegaRefBody(2) = zPositionLoop.calculate(0, positionError(2));
     Vector3d omegaCmdBody = omegaRefBody + refAngularVelocityVec;
 
     // Feed into inner velocity loop
     Vector3d torque;
-    torque(0) = xVelocityLoop.PICalculation(omegaCmdBody(0), angularVelocityVec(0));
-    torque(1) = yVelocityLoop.PICalculation(omegaCmdBody(1), angularVelocityVec(1));
-    torque(2) = zVelocityLoop.PICalculation(omegaCmdBody(2), angularVelocityVec(2));
+    torque(0) = xVelocityLoop.calculate(omegaCmdBody(0), angularVelocityVec(0));
+    torque(1) = yVelocityLoop.calculate(omegaCmdBody(1), angularVelocityVec(1));
+    torque(2) = zVelocityLoop.calculate(omegaCmdBody(2), angularVelocityVec(2));
 
     return torque;
 };
