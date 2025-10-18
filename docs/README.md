@@ -16,44 +16,37 @@ cmake --build build -j$(nproc)   # Compile using all CPU cores
 
 ## Dependencies
 
+Basic ones:
+
 ```bash
 # Libmodbus
-sudo apt install libmodbus-dev
-```
-
-## Windows Development
-
-WSL is needed for windows development.
-
-```bash
-wsl --install
-```
-
-When you open the repository in vscode or any platform, make sure to build in WSL terminal.
-
-### Give your Windows an ssh key if not already
-
-```bash
-ssh-keygen -t ed25519 -C "your_email@example.com"
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519
-cat ~/.ssh/id_ed25519.pub #copy entire line starting with ssh-ed25519
-git config --global user.name "Your Full Name"
-git config --global user.email "your_email@example.com"
-```
-
-Go to GitHub → Settings > SSH and GPG keys
-
-Click "New SSH Key"
-
-Paste the public key into the box
-
-Download libusb (used my labjack.so in the hardware sol lib)
-
-```bash
 sudo apt update
-sudo apt install libusb-1.0-0
+sudo apt install libmodbus-dev
+# Libusb
+sudo apt install libusb-1.0-0-dev
+sudo apt install libeigen3-dev
 ```
+
+For labjack:
+
+```bash
+git clone https://github.com/labjack/exodriver.git
+cd exodriver/liblabjackusb
+sudo make clean
+
+sudo make
+sudo make install
+
+sudo ldconfig
+
+ls /usr/local/lib | grep labjackusb
+# → should show: liblabjackusb.so
+
+ls /usr/local/include | grep labjackusb
+# → should show: labjackusb.h
+```
+
+For Maxon stuff, download the Epos and ftd2xx libraries [here](https://drive.google.com/drive/folders/1fGORTzJLLv8IFwaYweX2cKQKk2AuIADm?usp=sharing)
 
 ## Deploying On The Pi
 
