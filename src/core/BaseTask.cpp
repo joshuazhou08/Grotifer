@@ -12,24 +12,11 @@ BaseTask::BaseTask(const char *name, int taskID)
       nextTaskTime(0.0),
       state(0),
       nextState(0),
-      numScans(0)
-{
-    std::filesystem::create_directories("logs");
-    auditTrailLog.open("logs/trail_record.txt", std::ios::out | std::ios::trunc);
-    auditTrailLog << left << setw(w) << "Start" << left << setw(w) << "End" << left << setw(w) << "Duration[ms]" << left << setw(w) << "TaskName"
-                  << left << setw(w) << "TaskID" << left << setw(w) << "CurrState" << left << setw(w) << "NextState" << endl;
-}
+      numScans(0) {};
 
 BaseTask::~BaseTask()
 {
     std::cout << "Concluding " << name << " Task" << std::endl;
-}
-
-void BaseTask::AuditDataTrail()
-{
-    double duration = timeEnd - timeStart;
-    auditTrailLog << left << setw(w) << timeStart << left << setw(w) << timeEnd << left << setw(w) << duration * 1e3 << left << setw(w) << name
-                  << left << setw(w) << taskID << left << setw(w) << stateName << left << setw(w) << nextStateName << endl;
 }
 
 int BaseTask::Run() { return 0; }

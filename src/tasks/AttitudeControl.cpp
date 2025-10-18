@@ -13,6 +13,7 @@
 #include <future>
 #include <chrono>
 #include <thread>
+#include <Eigen/Dense>
 
 using namespace std;
 using namespace Eigen;
@@ -22,10 +23,10 @@ using namespace TimeUtils;
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
 // Forward declaration for new timeout velocity command to motor
-AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
-                                 Sensor& sunSensor,
-                                 Sensor& inclinometer,
-                                 ControlLoops& controlLoops)
+AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
+                                 Sensor &sunSensor,
+                                 Sensor &inclinometer,
+                                 ControlLoops &controlLoops)
     : BaseTask("AttitudeControl", 0),
       threeAxisActuator_(threeAxisActuator),
       sunSensor_(sunSensor),
@@ -38,12 +39,6 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
       zPositionLoop(controlLoops.zPositionLoop)
 
 {
-    InitializeLogs();
-
-    if (!attitudeLog || !sensorLog || !angularVelLog || !momentumWheelsLog)
-    {
-        throw runtime_error("Failed to open one or more log files in AttitudeControl.");
-    }
 
     cout << "[AttitudeControl] Logs initialized" << endl;
 
@@ -62,43 +57,8 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator& threeAxisActuator,
 
 AttitudeControl::~AttitudeControl()
 {
-    if (attitudeLog.is_open())
-        attitudeLog.close();
-    if (sensorLog.is_open())
-        sensorLog.close();
-    if (angularVelLog.is_open())
-        angularVelLog.close();
-    if (momentumWheelsLog.is_open())
-        momentumWheelsLog.close();
-    
+
     cout << "[AttitudeControl] Shutting down" << endl;
-}
-
-void AttitudeControl::InitializeLogs()
-{
-    filesystem::create_directories("logs");
-
-    attitudeLog.open("logs/attitude.txt", ios::out | ios::trunc);
-    sensorLog.open("logs/sensors.txt", ios::out | ios::trunc);
-    angularVelLog.open("logs/angular_velocity.txt", ios::out | ios::trunc);
-    momentumWheelsLog.open("logs/momentum_wheels.txt", ios::out | ios::trunc);
-
-    attitudeLog << left << setw(w) << "Time (s)" << left << setw(w) << "Xb_x" << left << setw(w) << "Xb_y" << left << setw(w) << "Xb_z"
-                << left << setw(w) << "Yb_x" << left << setw(w) << "Yb_y" << left << setw(w) << "Yb_z"
-                << left << setw(w) << "Zb_x" << left << setw(w) << "Zb_y" << left << setw(w) << "Zb_z" << endl;
-
-    sensorLog << left << setw(w) << "Time (s)" << left << setw(w) << "thxIncl(deg)" << left << setw(w) << "thzIncl(deg)"
-              << left << setw(w) << "thySun(deg)" << left << setw(w) << "thzSun(deg)"
-              << left << setw(w) << "thxEuler(deg)" << left << setw(w) << "thyEuler(deg)" << left << setw(w) << "thzEuler(deg)" << endl;
-
-    angularVelLog << left << setw(w) << "Time(s)" << left << setw(w) << "AngVel-x(rad/s)" << left << setw(w) << "AngVel-y(rad/s)" << left << setw(w) << "AngVel-z(rad/s)"
-                  << left << setw(w) << "Ref.AngVelX(rad/s)" << left << setw(w) << "Ref.AngVelY(rad/s)" << left << setw(w) << "Ref.AngVelZ(rad/s)"
-                  << left << setw(w) << "Err.AngVelX(rad/s)" << left << setw(w) << "Err.AngVelY(rad/s)" << left << setw(w) << "Err.AngVelZ(rad/s)"
-                  << left << setw(w) << "Rot.Angle(deg)" << left << setw(w) << "Prof.Angle(deg)" << left << setw(w) << "Prof.w(rad/s)" << left << setw(w) << "Prof.e(rad/s^2)" << endl;
-
-    momentumWheelsLog << left << setw(w) << "Time(s)" << left << setw(w) << "TorqueX(Nm)" << left << setw(w) << "XWheelVelCmd(rpm)" << left << setw(w) << "XWheelVelAct(rpm)"
-                      << left << setw(w) << "TorqueY(Nm)" << left << setw(w) << "YWheelVelCmd(rpm)" << left << setw(w) << "YWheelVelAct(rpm)"
-                      << left << setw(w) << "TorqueZ(Nm)" << left << setw(w) << "ZWheelVelCmd(rpm)" << left << setw(w) << "ZWheelVelAct(rpm)" << endl;
 }
 
 int AttitudeControl::Run()
@@ -143,9 +103,9 @@ int AttitudeControl::Run()
         // Read the Sun Sensor
         double thzSun = Deg2Rad(sunSensor_.getAngleX()); // Get Z-angle from Sun Sensor (corresponds to Sun X)
         double thySun = Deg2Rad(sunSensor_.getAngleY()); // Get Y-angle from Sun Sensor (corresponds to Sun Y)
-        
+
         // Get sun sensor diagnostic info (SunSensor-specific)
-        SunSensor& sunSensor = static_cast<SunSensor&>(sunSensor_);
+        SunSensor &sunSensor = static_cast<SunSensor &>(sunSensor_);
         int sunInfo = sunSensor.getAddInfo();
         if (sunInfo != 0)
         {
@@ -419,7 +379,6 @@ int AttitudeControl::Run()
     nextTaskTime += deltaTaskTime;
     timeEnd = GetTimeNow();
 
-    AuditDataTrail();
     return 0;
 }
 
@@ -427,9 +386,9 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
 {
     // Apply sign correction for Y and Z axes (hardware mounting orientation)
     Vector3d correctedTorque = torque;
-    correctedTorque(1) = -torque(1);  // Y axis needs to be flipped
-    correctedTorque(2) = -torque(2);  // Z axis needs to be flipped
-    
+    correctedTorque(1) = -torque(1); // Y axis needs to be flipped
+    correctedTorque(2) = -torque(2); // Z axis needs to be flipped
+
     threeAxisActuator_.applyTorque(correctedTorque, deltaT);
 }
 
@@ -438,7 +397,8 @@ void AttitudeControl::setHoldingPosition(Matrix3d position)
     holdingPosition = position;
     holdingPositionSet = true;
     preTimeHoldingPos = GetTimeNow();
-    cout << "[AttitudeControl] Holding position: " << endl << holdingPosition << endl;
+    cout << "[AttitudeControl] Holding position: " << endl
+         << holdingPosition << endl;
 }
 
 void AttitudeControl::prependFindSunRotation()
@@ -510,4 +470,3 @@ pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix,
 
     return make_pair(rotAxis, rotAngle);
 }
-

@@ -1,5 +1,5 @@
 #include "hardware/actuators/MaxonMotor.hpp"
-#include "../../MasterLibrary/GrotiferHardware/Definitions.h"
+#include <Definitions.h>
 #include <iostream>
 #include <cmath>
 #include <cstring>

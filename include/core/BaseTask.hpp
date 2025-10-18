@@ -25,13 +25,7 @@ protected:
     int nextState;
     std::string nextStateName;
     int numScans;
-
-    // log file line width
-    unsigned int w = 25;
-
-    void AuditDataTrail();
-    std::ofstream auditTrailLog;
-
+    
 public:
     BaseTask(const char *name, int taskID = 0);
     virtual ~BaseTask();

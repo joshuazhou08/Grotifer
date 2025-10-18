@@ -46,12 +46,6 @@ private:
     static constexpr int HOLDING_POSITION = 4;
     static constexpr int MOVING = 5;
 
-    void InitializeLogs();
-    std::ofstream attitudeLog; // holds the body fixed frame
-    std::ofstream sensorLog;
-    std::ofstream angularVelLog;
-    std::ofstream momentumWheelsLog;
-
     // Three-axis actuator system (fans and momentum wheels)
     ThreeAxisActuator& threeAxisActuator_;
 
