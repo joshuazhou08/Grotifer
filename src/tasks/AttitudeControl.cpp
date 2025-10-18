@@ -153,20 +153,23 @@ int AttitudeControl::Run()
         {
             nextState = INITIALIZING_MOTION;
             nextStateName = "Initializing Motion";
-            preTimeInitializingMotion = time;
+            // preTimeInitializingMotion is managed by INITIALIZING_MOTION state itself
+            // Don't overwrite it here to avoid tiny deltaT values
         }
         else if (!detumblingDone)
         {
             nextState = DETUMBLING;
             nextStateName = "Detumbling";
-            preTimeDetumbling = time;
+            // preTimeDetumbling is managed by DETUMBLING state itself
+            // Don't overwrite it here to avoid tiny deltaT values
         }
 
         else if (!movingDone)
         {
             nextState = MOVING;
             nextStateName = "Moving";
-            preTimeMoving = time;
+            // Only set preTimeMoving when first entering MOVING state (profile not yet calculated)
+            // Don't overwrite it on subsequent cycles, as MOVING state manages its own timing
             if (!movingProfileCalculated)
             {
                 // reset moving profile variables
@@ -198,6 +201,7 @@ int AttitudeControl::Run()
                     cout << "[AttitudeControl] No rotation configured - queue is empty" << endl;
                 }
                 double time = GetTimeNow();
+                preTimeMoving = time;  // Initialize timing for MOVING state
 
                 // Use parameters from current rotation command
                 double moveVelocity = currentRotationCommand.velocity;
