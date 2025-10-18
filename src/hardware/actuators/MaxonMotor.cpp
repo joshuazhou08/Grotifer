@@ -19,10 +19,11 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
     // Reset port name selection
     VCS_ResetPortNameSelection(deviceName, protocolStackName, interfaceName, &errorCode);
     
-    // Scan for available ports
+    // Count available ports (matching old code behavior)
     const unsigned int MAX_STR_SIZE = 100;
-    char portNameTemp[MAX_STR_SIZE];  // Temporary buffer to receive each port name during scan
+    char portNameTemp[MAX_STR_SIZE];
     int endOfSelection = false;
+    unsigned int numAvailablePorts = 0;
     
     // Get first port
     if (!VCS_GetPortNameSelection(deviceName, protocolStackName, interfaceName, true, 
@@ -30,12 +31,24 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
         cerr << "[MaxonMotor] Failed to scan for USB ports" << endl;
         return nullptr;
     }
+    numAvailablePorts++;
     
-    // Try each available port until we find our motor
+    // Count remaining ports
     while (!endOfSelection) {
+        numAvailablePorts++;
+        VCS_GetPortNameSelection(deviceName, protocolStackName, interfaceName, false,
+                                portNameTemp, MAX_STR_SIZE, &endOfSelection, &errorCode);
+    }
+    
+    // Try each available port using constructed names (USB0, USB1, etc.)
+    // This matches the old code behavior where port names are constructed as "USB" + index
+    for (unsigned int i = 0; i < numAvailablePorts; i++) {
+        string portName = string("USB") + to_string(i);
+        
         // Try to open this port
+        // Use &portName[0] to get non-const char* for old C API (same as old code's &availPortNameList[i][0])
         void* handle = VCS_OpenDevice(deviceName, protocolStackName, interfaceName, 
-                                      portNameTemp, &errorCode);
+                                      &portName[0], &errorCode);
         
         if (handle != nullptr) {
             // Clear any faults and disable
@@ -53,7 +66,7 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
                 // Check if this is the motor we're looking for
                 if (serialNo == targetSerialNo) {
                     cout << "[MaxonMotor] Found motor with serial " << serialNo 
-                         << " on port " << portNameTemp << endl;
+                         << " on port " << portName << endl;
                     return handle;
                 }
             }
@@ -61,10 +74,6 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
             // Not the right motor, close this device and continue scanning
             VCS_CloseDevice(handle, &errorCode);
         }
-        
-        // Get next port
-        VCS_GetPortNameSelection(deviceName, protocolStackName, interfaceName, false,
-                                portNameTemp, MAX_STR_SIZE, &endOfSelection, &errorCode);
     }
     
     // Motor not found
@@ -197,19 +206,20 @@ void MaxonMotor::applyTorque(const Vector3d& torqueCmd, double deltaT) {
     // Torque -> acceleration -> velocity integration for momentum wheel
     double accCmd = torque / momentOfInertia_;
     
-    // Get current velocity
-    currentVelocity_ = static_cast<int>(getVelocity());
-    
-    // Integrate: velocity = current + (acceleration * time) * conversion_factor
+    // Integrate velocity as double to preserve fractional rpm changes
     // conversion factor: (30 / pi) converts rad/s to rpm
-    int velCmd = currentVelocity_ + static_cast<int>((accCmd * deltaT) * (30.0 / M_PI));
-    
+    double velocityIncrement = (accCmd * deltaT) * (30.0 / M_PI);
+    currentVelocity_ += velocityIncrement;
+
     // Clamp to max velocity
-    if (velCmd > maxVelocity_) {
-        velCmd = maxVelocity_;
-    } else if (velCmd < -maxVelocity_) {
-        velCmd = -maxVelocity_;
+    if (currentVelocity_ > maxVelocity_) {
+        currentVelocity_ = maxVelocity_;
+    } else if (currentVelocity_ < -maxVelocity_) {
+        currentVelocity_ = -maxVelocity_;
     }
+    
+    // Convert to int only when commanding the motor
+    int velCmd = static_cast<int>(currentVelocity_);
     
     // Send velocity command to motor
     setVelocityCommand(velCmd);

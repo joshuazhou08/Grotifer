@@ -70,8 +70,8 @@ private:
     int maxVelocity_;          // Maximum velocity [rpm]
     
     // State tracking
-    int currentVelocity_ = 0;  // Current velocity in rpm
-    int commandedVelocity_ = 0; // Last commanded velocity in rpm
+    double currentVelocity_ = 0.0;  // Accumulated velocity in rpm (double for precise integration)
+    int commandedVelocity_ = 0; // Last commanded velocity in rpm (sent to motor as int)
     bool isOpen_ = false;
 };
 
