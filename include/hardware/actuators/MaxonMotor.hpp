@@ -2,6 +2,8 @@
 #include "hardware/actuators/Actuator.hpp"
 #include <Eigen/Dense>
 #include <cstdint>
+#include <set>
+#include <string>
 
 // Motor configuration parameters
 struct MaxonParameters {
@@ -55,10 +57,14 @@ private:
     void setDisableState();
     bool setVelocityCommand(int velocityRPM);
     
+    // Static port tracking to prevent multiple motors from opening the same port
+    static std::set<std::string> openPorts_;
+    
     // Hardware interface
     void* handle_;
     uint32_t serialNo_;
     const char* motorName_;
+    std::string portName_;     // Track which port this motor is using
     unsigned int nodeID_ = 1;
     unsigned int baudrate_ = 1000000;
     unsigned int timeout_ = 500;

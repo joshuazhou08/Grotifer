@@ -7,6 +7,9 @@
 using namespace std;
 using namespace Eigen;
 
+// Define static member for tracking open ports across all motor instances
+set<string> MaxonMotor::openPorts_;
+
 // Private method to open motor by scanning USB ports for matching serial number
 void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
     // EPOS4 connection parameters (mutable buffers for old C API)
@@ -45,16 +48,17 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
     for (unsigned int i = 0; i < numAvailablePorts; i++) {
         string portName = string("USB") + to_string(i);
         
+        // Skip this port if it's already open by another motor instance
+        if (openPorts_.find(portName) != openPorts_.end()) {
+            continue;  // Port already in use, skip it
+        }
+        
         // Try to open this port
         // Use &portName[0] to get non-const char* for old C API (same as old code's &availPortNameList[i][0])
         void* handle = VCS_OpenDevice(deviceName, protocolStackName, interfaceName, 
                                       &portName[0], &errorCode);
         
         if (handle != nullptr) {
-            // Clear any faults and disable
-            VCS_ClearFault(handle, nodeID, &errorCode);
-            VCS_SetDisableState(handle, nodeID, &errorCode);
-            
             // Read serial number from this device
             uint32_t serialNo = 0;
             unsigned int numBytesToRead = 4;
@@ -65,6 +69,14 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
                 
                 // Check if this is the motor we're looking for
                 if (serialNo == targetSerialNo) {
+                    // Found the right motor! Now initialize it
+                    VCS_ClearFault(handle, nodeID, &errorCode);
+                    VCS_SetDisableState(handle, nodeID, &errorCode);
+                    
+                    // Mark this port as open and store it for this instance
+                    openPorts_.insert(portName);
+                    portName_ = portName;
+                    
                     cout << "[MaxonMotor] Found motor with serial " << serialNo 
                          << " on port " << portName << endl;
                     return handle;
@@ -74,6 +86,7 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
             // Not the right motor, close this device and continue scanning
             VCS_CloseDevice(handle, &errorCode);
         }
+        // If handle is nullptr, the device failed to open - skip it
     }
     
     // Motor not found
@@ -117,7 +130,11 @@ MaxonMotor::~MaxonMotor() {
         // Close the device
         VCS_CloseDevice(handle_, &errorCode_);
         
-        cout << "[MaxonMotor] " << motorName_ << " closed" << endl;
+        // Remove this port from the open ports tracking
+        openPorts_.erase(portName_);
+        
+        cout << "[MaxonMotor] " << motorName_ << " closed and port " 
+             << portName_ << " released" << endl;
     }
 }
 
