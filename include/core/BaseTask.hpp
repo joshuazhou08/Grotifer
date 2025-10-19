@@ -3,6 +3,13 @@
 #include <memory>
 #include <filesystem>
 #include <fstream>
+
+// Task state enum
+enum TaskState
+{
+    INITIALIZING = 0
+};
+
 // -----------------------
 // BaseTask class
 // -----------------------

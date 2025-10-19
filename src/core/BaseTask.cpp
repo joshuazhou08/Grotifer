@@ -10,8 +10,8 @@ BaseTask::BaseTask(const char *name, int taskID)
       taskID(taskID),
       deltaTaskTime(0.0),
       nextTaskTime(0.0),
-      state(0),
-      nextState(0),
+      state(INITIALIZING),
+      nextState(INITIALIZING),
       numScans(0) {};
 
 BaseTask::~BaseTask()

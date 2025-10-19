@@ -72,199 +72,98 @@ int AttitudeControl::Run()
     state = nextState;
     stateName = nextStateName;
 
+    // Read the Sun Sensor
+    double thzSun = Deg2Rad(sunSensor_.getAngleX()); // Get Z-angle from Sun Sensor (corresponds to Sun X)
+    double thySun = Deg2Rad(sunSensor_.getAngleY()); // Get Y-angle from Sun Sensor (corresponds to Sun Y)
+
+    int sunInfo = sunSensor_.getAddInfo();           // To detect when the sun is out of range
+    if (sunInfo != 0)
+    {
+        cout << "[AttitudeControl] Sun Message: " << sunSensor_.getAddMessage(sunInfo) << endl;
+    }
+
+    // Read the inclinometer
+    double thxIncl = Deg2Rad(inclinometer_.getAngleY()); // Corresponds to Inclinometer Y
+    double thzIncl = Deg2Rad(inclinometer_.getAngleX()); // Corresponds to Inclinometer X
+
+
+    // Get the current orientation and the angular velocity
+    Matrix3d currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
+    Vector3d angularVelocityVec{{0.0, 0.0, 0.0}};
+
+    if (prevOrientation.isZero()) // Initial state has not been set
+    {
+        prevOrientation = currentOrientation;
+        preTime = GetTimeNow();
+        return 0; // return to avoid division by zero
+    }
+
+    // Calculate time and deltaT for this iteration
+    double time = GetTimeNow();
+    double deltaT = time - preTime;
+    
+    // Calculate the angular velocity
+    angularVelocityVec = currentOrientation.transpose() * AngularVelocitySolver::solve(prevOrientation, currentOrientation, deltaT); // convert angular velocity to body fixed frame
+    prevOrientation = currentOrientation;
+
+    // TODO: Add logging
+    
+    // Fresh delta T for going into the switch statement
+    deltaT = GetTimeNow() - preTime;   
+    
     switch (state)
     {
     case INITIALIZING:
     {
         if (AttitudeConfig::initialKick)
         {
-            iniMotionDone = false;
             iniKickEndTime = GetTimeNow() + AttitudeConfig::iniKickDuration;
-            preTimeInitializingMotion = GetTimeNow();
             nextState = INITIALIZING_MOTION;
             nextStateName = "Initializing Motion";
             cout << "[AttitudeControl] Finished initializing. Going into initial kick" << endl;
         }
         else
         {
-            iniMotionDone = true;
             detumblingEndTime = GetTimeNow() + AttitudeConfig::detumblingMaxDuration;
-            preTimeDetumbling = GetTimeNow();
-            nextState = DETERMINING_ATTITUDE;
-            nextStateName = "Determining Attitude";
-            cout << "[AttitudeControl] Finished initializing. Going into detumble" << endl;
-        }
-
-        break;
-    }
-
-    case DETERMINING_ATTITUDE:
-    {
-        // Read the Sun Sensor
-        double thzSun = Deg2Rad(sunSensor_.getAngleX()); // Get Z-angle from Sun Sensor (corresponds to Sun X)
-        double thySun = Deg2Rad(sunSensor_.getAngleY()); // Get Y-angle from Sun Sensor (corresponds to Sun Y)
-
-        // Get sun sensor diagnostic info (SunSensor-specific)
-        SunSensor &sunSensor = static_cast<SunSensor &>(sunSensor_);
-        int sunInfo = sunSensor.getAddInfo();
-        if (sunInfo != 0)
-        {
-            cout << "[AttitudeControl] Sun Message: " << sunSensor.getAddMessage(sunInfo) << endl;
-        }
-
-        // Read the Inclinometer
-        double thxIncl = Deg2Rad(inclinometer_.getAngleY()); // Corresponds to Inclinometer Y
-        double thzIncl = Deg2Rad(inclinometer_.getAngleX()); // Corresponds to Inclinometer X
-
-        // Calculating the attitude
-        currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
-
-        // Get the axes
-        Vector3d bodyX, bodyY, bodyZ;
-        bodyX = currentOrientation * Vector3d(1.0, 0.0, 0.0);
-        bodyY = currentOrientation * Vector3d(0.0, 1.0, 0.0);
-        bodyZ = currentOrientation * Vector3d(0.0, 0.0, 1.0);
-
-        double time = GetTimeNow(); // Get the current time
-
-        // Calculate the angular velocity
-        if (iniRotMat.isZero()) // Initial state has not been set
-        {
-            iniRotMat = currentOrientation;
-            prevRotMat = iniRotMat;
-            angularVelocityVec << 0.0, 0.0, 0.0;
-            preTime = time;
-        }
-        else
-        {
-            double deltaT = time - preTime;                                                                                             // Calculate the actual delta_t between two consecutive calls
-            angularVelocityVec = currentOrientation.transpose() * AngularVelocitySolver::solve(prevRotMat, currentOrientation, deltaT); // convert angular velocity to body fixed frame
-            prevRotMat = currentOrientation;
-        }
-
-        angularVelocityVec = emaFilter3d(AttitudeConfig::fc, time - preTime, angularVelocityVec, preAngularVelocityVec); // Use Exponential-moving-average filter
-
-        // TODO: Add logging
-
-        // Update
-        preAngularVelocityVec = angularVelocityVec;
-        preTime = time;
-        if (!iniMotionDone)
-        {
-            nextState = INITIALIZING_MOTION;
-            nextStateName = "Initializing Motion";
-            // preTimeInitializingMotion is managed by INITIALIZING_MOTION state itself
-            // Don't overwrite it here to avoid tiny deltaT values
-        }
-        else if (!detumblingDone)
-        {
             nextState = DETUMBLING;
             nextStateName = "Detumbling";
-            // preTimeDetumbling is managed by DETUMBLING state itself
-            // Don't overwrite it here to avoid tiny deltaT values
+            cout << "[AttitudeControl] Finished initializing. Going into detumbling" << endl;
         }
 
-        else if (!movingDone)
-        {
-            nextState = MOVING;
-            nextStateName = "Moving";
-            // Only set preTimeMoving when first entering MOVING state (profile not yet calculated)
-            // Don't overwrite it on subsequent cycles, as MOVING state manages its own timing
-            if (!movingProfileCalculated)
-            {
-                // reset moving profile variables
-                movingProfileVelocity = 0.0;
-                movingProfileAngle = 0.0;
-                movingProfileRotAxis << 0.0, 0.0, 0.0;
-                startingOrientation = currentOrientation;
-
-                // Get the next rotation from the queue (includes find sun if it was prepended)
-                if (!rotationQueue.empty())
-                {
-                    currentRotationCommand = rotationQueue.front();
-                    rotationQueue.pop();
-
-                    deltaTheta = currentRotationCommand.angle;
-                    movingProfileRotAxis = currentRotationCommand.axis.normalized();
-
-                    cout << "[AttitudeControl] Executing Rotation Command:" << endl;
-                    cout << "[AttitudeControl]   Axis: " << movingProfileRotAxis.transpose() << endl;
-                    cout << "[AttitudeControl]   Angle (rad): " << deltaTheta << endl;
-                    cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(deltaTheta) << endl;
-                    cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << endl;
-                    cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << endl;
-                    cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << endl;
-                }
-                else
-                {
-                    deltaTheta = 0; // No move configured
-                    cout << "[AttitudeControl] No rotation configured - queue is empty" << endl;
-                }
-                double time = GetTimeNow();
-                preTimeMoving = time;  // Initialize timing for MOVING state
-
-                // Use parameters from current rotation command
-                double moveVelocity = currentRotationCommand.velocity;
-                double moveAcceleration = currentRotationCommand.acceleration;
-
-                double accelDuration = abs(moveVelocity / moveAcceleration) + 2 * deltaTaskTime;
-                double constantDuration = abs(deltaTheta / moveVelocity) + 2 * deltaTaskTime;
-                double deccelDuration = accelDuration;
-
-                movingProfileAccelerationEndTime = time + accelDuration;
-                movingProfileConstantEndTime = time + accelDuration + constantDuration;
-                movingProfileDecelerationEndTime = time + accelDuration + constantDuration + deccelDuration;
-                movingProfileCalculated = true;
-
-                cout << "[AttitudeControl] Moving Profile Calculated" << endl;
-                cout << "[AttitudeControl]   Acceleration End Time: " << movingProfileAccelerationEndTime << endl;
-                cout << "[AttitudeControl]   Constant End Time: " << movingProfileConstantEndTime << endl;
-                cout << "[AttitudeControl]   Deceleration End Time: " << movingProfileDecelerationEndTime << endl;
-            }
-        }
-
-        else
-        {
-            nextState = HOLDING_POSITION;
-            nextStateName = "Holding Position";
-        }
         break;
     }
 
     case INITIALIZING_MOTION:
     {
-        double time = GetTimeNow();
-        double deltaT = time - preTimeInitializingMotion;
         if (time < iniKickEndTime)
         {
             applyTorque(AttitudeConfig::iniTorqueVec, deltaT);
         }
-
         else
         {
             Vector3d zeroVector{{0.0, 0.0, 0.0}};
             applyTorque(zeroVector, deltaT);
         }
-        if (time + preTimeInitializingMotion >= iniKickEndTime * 2)
+        
+        // Check if initial kick is complete
+        if (time >= iniKickEndTime * 2)
         {
-            iniMotionDone = true;
-            cout << "[AttitudeControl] Initial Kick Done" << endl;
             detumblingEndTime = GetTimeNow() + AttitudeConfig::detumblingMaxDuration;
-            preTimeDetumbling = GetTimeNow();
+            nextState = DETUMBLING;
+            nextStateName = "Detumbling";
+            cout << "[AttitudeControl] Initial Kick Done" << endl;
         }
-
-        preTimeInitializingMotion = time;
-        nextState = DETERMINING_ATTITUDE;
-        nextStateName = "Determining Attitude";
+        else
+        {
+            nextState = INITIALIZING_MOTION;
+            nextStateName = "Initializing Motion";
+        }
 
         break;
     }
 
     case DETUMBLING:
     {
-        double time = GetTimeNow();
-        double deltaT = time - preTimeDetumbling;
-
         Vector3d torque;
         torque(0) = xVelocityLoop.calculate(0, angularVelocityVec(0));
         torque(1) = yVelocityLoop.calculate(0, angularVelocityVec(1));
@@ -274,10 +173,9 @@ int AttitudeControl::Run()
 
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
 
+        // Check if detumbling is complete
         if (time >= detumblingEndTime && maxComponent < 4.5e-3)
         {
-            detumblingDone = true;
-
             // Prepend find sun rotation to the front of the queue if enabled
             if (AttitudeConfig::enableFindSun)
             {
@@ -288,63 +186,53 @@ int AttitudeControl::Run()
             {
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
+            
+            // Transition to MOVING if there are rotations in the queue
+            if (!rotationQueue.empty())
+            {
+                initializeMovingProfile(currentOrientation);
+                nextState = MOVING;
+                nextStateName = "Moving";
+            }
+            else
+            {
+                // No moves configured, just hold current position
+                setHoldingPosition(currentOrientation);
+                nextState = HOLDING_POSITION;
+                nextStateName = "Holding Position";
+                cout << "[AttitudeControl] No rotations in queue, holding current position" << endl;
+            }
+        }
+        else
+        {
+            nextState = DETUMBLING;
+            nextStateName = "Detumbling";
         }
 
-        nextState = DETERMINING_ATTITUDE;
-        nextStateName = "Determining Attitude";
-
-        preTimeDetumbling = time;
         break;
     }
 
     case HOLDING_POSITION:
     {
-        double time = GetTimeNow();
-        double deltaT = time - preTimeHoldingPos;
-
         Vector3d refAngularVelocityVec{{0.0, 0.0, 0.0}}; // we want it to be 0 when holding position
 
         Vector3d torque = cascadeControl(holdingPosition, currentOrientation, refAngularVelocityVec);
 
         applyTorque(torque, deltaT);
 
-        nextState = DETERMINING_ATTITUDE;
-        nextStateName = "Determining Attitude";
-        preTimeHoldingPos = time;
+        // Stay in HOLDING_POSITION
+        nextState = HOLDING_POSITION;
+        nextStateName = "Holding Position";
         break;
     }
 
     case MOVING:
     {
-        double time = GetTimeNow();
-        double deltaT = time - preTimeMoving;
-
-        if (time < movingProfileAccelerationEndTime)
-        {
-            movingProfileVelocity = movingProfileVelocity + currentRotationCommand.acceleration * deltaT;
-            movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
-        }
-        else if (time < movingProfileConstantEndTime)
-        {
-            movingProfileVelocity = currentRotationCommand.velocity;
-            movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
-        }
-        else if (time < movingProfileDecelerationEndTime)
-        {
-            movingProfileVelocity = movingProfileVelocity - currentRotationCommand.acceleration * deltaT;
-            movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
-        }
-        else
-        {
-            movingProfileVelocity = 0.0;
-            movingProfileAngle = deltaTheta;
-        }
-
-        Vector3d refAngularVelocityVec = currentOrientation.transpose() * (movingProfileRotAxis * movingProfileVelocity);
-
-        // Get the profile orientation by taking the starting orientation and rotating it by the profile angle
-        AngleAxis aa(movingProfileAngle, movingProfileRotAxis);
-        Matrix3d movingProfileOrientation = startingOrientation * aa.toRotationMatrix();
+        // Calculate motion profile velocity and target orientation
+        auto [inertialVelocityVec, movingProfileOrientation] = calculateMotionProfile(time, deltaT);
+        
+        // Convert inertial velocity to body frame
+        Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
 
         Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec);
 
@@ -352,20 +240,21 @@ int AttitudeControl::Run()
 
         applyTorque(torque, deltaT);
 
+        // Check if current move is complete
         double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
         if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
         {
-            movingDone = true;
-
             // Check if there are more moves in the queue
             if (!rotationQueue.empty())
             {
                 cout << "[AttitudeControl] Current move done! Preparing next move from queue" << endl;
-                movingProfileCalculated = false;
-                movingDone = false; // Reset to continue with next move
+                initializeMovingProfile(currentOrientation);
+                nextState = MOVING;
+                nextStateName = "Moving";
             }
             else
             {
+                // All moves complete, hold final position
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
@@ -373,13 +262,20 @@ int AttitudeControl::Run()
                 movingProfileCalculated = false;
             }
         }
+        else
+        {
+            // Continue moving
+            nextState = MOVING;
+            nextStateName = "Moving";
+        }
 
-        nextState = DETERMINING_ATTITUDE;
-        nextStateName = "Determining Attitude";
-        preTimeMoving = time;
         break;
     }
     }
+
+    // Update preTime for next iteration
+    preTime = time;
+
     nextTaskTime += deltaTaskTime;
     timeEnd = GetTimeNow();
 
@@ -456,6 +352,92 @@ Vector3d AttitudeControl::cascadeControl(Matrix3d target, Matrix3d current, Vect
 
     return torque;
 };
+
+void AttitudeControl::initializeMovingProfile(const Matrix3d& currentOrientation)
+{
+    // Reset moving profile variables
+    movingProfileVelocity = 0.0;
+    movingProfileAngle = 0.0;
+    movingProfileRotAxis << 0.0, 0.0, 0.0;
+    startingOrientation = currentOrientation;
+
+    // Get the next rotation from the queue
+    if (!rotationQueue.empty())
+    {
+        currentRotationCommand = rotationQueue.front();
+        rotationQueue.pop();
+
+        deltaTheta = currentRotationCommand.angle;
+        movingProfileRotAxis = currentRotationCommand.axis.normalized();
+
+        cout << "[AttitudeControl] Executing Rotation Command:" << endl;
+        cout << "[AttitudeControl]   Axis: " << movingProfileRotAxis.transpose() << endl;
+        cout << "[AttitudeControl]   Angle (rad): " << deltaTheta << endl;
+        cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(deltaTheta) << endl;
+        cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << endl;
+        cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << endl;
+        cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << endl;
+    }
+    else
+    {
+        deltaTheta = 0; // No move configured
+        cout << "[AttitudeControl] No rotation configured - queue is empty" << endl;
+    }
+    
+    double time = GetTimeNow();
+
+    // Use parameters from current rotation command
+    double moveVelocity = currentRotationCommand.velocity;
+    double moveAcceleration = currentRotationCommand.acceleration;
+
+    double accelDuration = abs(moveVelocity / moveAcceleration) + 2 * deltaTaskTime;
+    double constantDuration = abs(deltaTheta / moveVelocity) + 2 * deltaTaskTime;
+    double deccelDuration = accelDuration;
+
+    movingProfileAccelerationEndTime = time + accelDuration;
+    movingProfileConstantEndTime = time + accelDuration + constantDuration;
+    movingProfileDecelerationEndTime = time + accelDuration + constantDuration + deccelDuration;
+    movingProfileCalculated = true;
+
+    cout << "[AttitudeControl] Moving Profile Calculated" << endl;
+    cout << "[AttitudeControl]   Acceleration End Time: " << movingProfileAccelerationEndTime << endl;
+    cout << "[AttitudeControl]   Constant End Time: " << movingProfileConstantEndTime << endl;
+    cout << "[AttitudeControl]   Deceleration End Time: " << movingProfileDecelerationEndTime << endl;
+}
+
+std::pair<Vector3d, Matrix3d> AttitudeControl::calculateMotionProfile(double time, double deltaT)
+{
+    // Update velocity and angle based on current phase
+    if (time < movingProfileAccelerationEndTime)
+    {
+        movingProfileVelocity = movingProfileVelocity + currentRotationCommand.acceleration * deltaT;
+        movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
+    }
+    else if (time < movingProfileConstantEndTime)
+    {
+        movingProfileVelocity = currentRotationCommand.velocity;
+        movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
+    }
+    else if (time < movingProfileDecelerationEndTime)
+    {
+        movingProfileVelocity = movingProfileVelocity - currentRotationCommand.acceleration * deltaT;
+        movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
+    }
+    else
+    {
+        movingProfileVelocity = 0.0;
+        movingProfileAngle = deltaTheta;
+    }
+
+    // Calculate inertial frame angular velocity vector
+    Vector3d inertialVelocityVec = movingProfileRotAxis * movingProfileVelocity;
+
+    // Calculate target orientation by rotating starting orientation by profile angle
+    AngleAxis aa(movingProfileAngle, movingProfileRotAxis);
+    Matrix3d targetOrientation = startingOrientation * aa.toRotationMatrix();
+
+    return std::make_pair(inertialVelocityVec, targetOrientation);
+}
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
 {

@@ -22,6 +22,17 @@ struct ControlLoops {
     PIControl zPositionLoop;
 };
 
+// Attitude Control state enum
+enum AttitudeControlState
+{
+    INITIALIZING = 0,
+    DETERMINING_ATTITUDE = 1,
+    INITIALIZING_MOTION = 2,
+    DETUMBLING = 3,
+    HOLDING_POSITION = 4,
+    MOVING = 5
+};
+
 // -----------------------
 // Attitude Control
 // -----------------------
@@ -38,13 +49,6 @@ public:
     int Run() override;
 
 private:
-    // States
-    static constexpr int INITIALIZING = 0;
-    static constexpr int DETERMINING_ATTITUDE = 1;
-    static constexpr int INITIALIZING_MOTION = 2;
-    static constexpr int DETUMBLING = 3;
-    static constexpr int HOLDING_POSITION = 4;
-    static constexpr int MOVING = 5;
 
     // Three-axis actuator system (fans and momentum wheels)
     ThreeAxisActuator& threeAxisActuator_;
@@ -55,15 +59,9 @@ private:
 
 
     // for storing state to calculate angular velocity
-    Matrix3d iniRotMat{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
-    Matrix3d prevRotMat{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
+    Matrix3d prevOrientation{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
     double preTime;
-
-    // position and velocity variables
     Vector3d preAngularVelocityVec{{0.0, 0.0, 0.0}};
-    Vector3d angularVelocityVec{{0.0, 0.0, 0.0}}; // IN BODY FIXED COORDS
-    Matrix3d currentOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
-    double rotAngle;
 
     // for calculating movement profiles
     double thetaProf, wProf, eProf;
@@ -71,26 +69,19 @@ private:
 
     // for the initial kick
     double iniKickEndTime;
-    double preTimeInitializingMotion; // Used to track change in time
-    bool iniMotionDone = false;
 
     // for detumbling
     double detumblingEndTime;
-    double preTimeDetumbling;
-    bool detumblingDone = false;
 
     // for holding position
     bool holdingPositionSet = false;
-    double preTimeHoldingPos;
     Matrix3d holdingPosition{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
     // FOR MOVING PROFILE
-    double preTimeMoving;
     double movingProfileAccelerationEndTime; // accelerate before this time is reached
     double movingProfileConstantEndTime;     // constant velocity before this time is reached
     double movingProfileDecelerationEndTime; // decelerate before this time is reached (also the end of the move profile)
     bool movingProfileCalculated = false;    // true if the moving profile has been calculated (e. g. the times above have been set)
-    bool movingDone = false;
     double refVelocity = 0.02;       // [rad/s] The constant velocity of the moving profile
     double refAcceleration = 4.0e-3; // [rad/s^2] The constant acceleration/deceleration of the moving profile
     Matrix3d startingOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
@@ -140,4 +131,18 @@ private:
      * @return torque to apply
      */
     Vector3d cascadeControl(Matrix3d target, Matrix3d current, Vector3d refAngularVelocityVec);
+
+    /**
+     * @brief Initializes the moving profile for the next rotation in the queue
+     * @param currentOrientation The current orientation matrix
+     */
+    void initializeMovingProfile(const Matrix3d& currentOrientation);
+
+    /**
+     * @brief Calculates the motion profile velocity and orientation at the current time
+     * @param time Current time
+     * @param deltaT Time since last iteration
+     * @return Pair of (inertial frame angular velocity vector, target orientation matrix)
+     */
+    std::pair<Vector3d, Matrix3d> calculateMotionProfile(double time, double deltaT);
 };
