@@ -21,7 +21,6 @@ using namespace RotationHelpers;
 using namespace TimeUtils;
 // Forward delcaration for helpers
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
-pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix);
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
                                  Sensor &sunSensor,
@@ -73,19 +72,19 @@ int AttitudeControl::Run()
     stateName = nextStateName;
 
     // Read the Sun Sensor
-    double thzSun = Deg2Rad(sunSensor_.getAngleX()); // Get Z-angle from Sun Sensor (corresponds to Sun X)
-    double thySun = Deg2Rad(sunSensor_.getAngleY()); // Get Y-angle from Sun Sensor (corresponds to Sun Y)
-
-    int sunInfo = sunSensor_.getAddInfo();           // To detect when the sun is out of range
+    SunSensor &ss = dynamic_cast<SunSensor &>(sunSensor_);
+    double thzSun = Deg2Rad(ss.getAngleX());
+    double thySun = Deg2Rad(ss.getAngleY());
+    int sunInfo = ss.getAddInfo();
+    string message = ss.getAddMessage(sunInfo);
     if (sunInfo != 0)
     {
-        cout << "[AttitudeControl] Sun Message: " << sunSensor_.getAddMessage(sunInfo) << endl;
+        cout << "[AttitudeControl] Sun Message: " << message << endl;
     }
 
     // Read the inclinometer
     double thxIncl = Deg2Rad(inclinometer_.getAngleY()); // Corresponds to Inclinometer Y
     double thzIncl = Deg2Rad(inclinometer_.getAngleX()); // Corresponds to Inclinometer X
-
 
     // Get the current orientation and the angular velocity
     Matrix3d currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
@@ -101,16 +100,16 @@ int AttitudeControl::Run()
     // Calculate time and deltaT for this iteration
     double time = GetTimeNow();
     double deltaT = time - preTime;
-    
+
     // Calculate the angular velocity
     angularVelocityVec = currentOrientation.transpose() * AngularVelocitySolver::solve(prevOrientation, currentOrientation, deltaT); // convert angular velocity to body fixed frame
     prevOrientation = currentOrientation;
 
     // TODO: Add logging
-    
+
     // Fresh delta T for going into the switch statement
-    deltaT = GetTimeNow() - preTime;   
-    
+    deltaT = GetTimeNow() - preTime;
+
     switch (state)
     {
     case INITIALIZING:
@@ -144,7 +143,7 @@ int AttitudeControl::Run()
             Vector3d zeroVector{{0.0, 0.0, 0.0}};
             applyTorque(zeroVector, deltaT);
         }
-        
+
         // Check if initial kick is complete
         if (time >= iniKickEndTime * 2)
         {
@@ -179,14 +178,14 @@ int AttitudeControl::Run()
             // Prepend find sun rotation to the front of the queue if enabled
             if (AttitudeConfig::enableFindSun)
             {
-                prependFindSunRotation();
+                prependFindSunRotation(currentOrientation);
                 cout << "[AttitudeControl] Detumbling Done - Find Sun rotation added to queue" << endl;
             }
             else
             {
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
-            
+
             // Transition to MOVING if there are rotations in the queue
             if (!rotationQueue.empty())
             {
@@ -216,7 +215,7 @@ int AttitudeControl::Run()
     {
         Vector3d refAngularVelocityVec{{0.0, 0.0, 0.0}}; // we want it to be 0 when holding position
 
-        Vector3d torque = cascadeControl(holdingPosition, currentOrientation, refAngularVelocityVec);
+        Vector3d torque = cascadeControl(holdingPosition, currentOrientation, refAngularVelocityVec, angularVelocityVec);
 
         applyTorque(torque, deltaT);
 
@@ -230,18 +229,18 @@ int AttitudeControl::Run()
     {
         // Calculate motion profile velocity and target orientation
         auto [inertialVelocityVec, movingProfileOrientation] = calculateMotionProfile(time, deltaT);
-        
+
         // Convert inertial velocity to body frame
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
 
-        Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec);
+        Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec, angularVelocityVec);
 
-        angularVelocityErrorVec << xVelocityLoop.getError(), yVelocityLoop.getError(), zVelocityLoop.getError();
+        Vector3d error{{xVelocityLoop.getError(), yVelocityLoop.getError(), zVelocityLoop.getError()}};
 
         applyTorque(torque, deltaT);
 
         // Check if current move is complete
-        double maxComponent = angularVelocityVec.cwiseAbs().maxCoeff();
+        double maxComponent = error.cwiseAbs().maxCoeff();
         if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
         {
             // Check if there are more moves in the queue
@@ -282,7 +281,7 @@ int AttitudeControl::Run()
     return 0;
 }
 
-void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
+void AttitudeControl::applyTorque(const Vector3d &torque, double deltaT)
 {
     // Apply sign correction for Y and Z axes (hardware mounting orientation)
     Vector3d correctedTorque = torque;
@@ -292,22 +291,22 @@ void AttitudeControl::applyTorque(Vector3d torque, double deltaT)
     threeAxisActuator_.applyTorque(correctedTorque, deltaT);
 }
 
-void AttitudeControl::setHoldingPosition(Matrix3d position)
+void AttitudeControl::setHoldingPosition(const Matrix3d &orientation)
 {
-    holdingPosition = position;
+    holdingPosition = orientation;
     holdingPositionSet = true;
-    preTimeHoldingPos = GetTimeNow();
     cout << "[AttitudeControl] Holding position: " << endl
          << holdingPosition << endl;
 }
 
-void AttitudeControl::prependFindSunRotation()
+void AttitudeControl::prependFindSunRotation(const Matrix3d &currentOrientation)
 {
     // Calculate rotation needed to go from current orientation to identity (sun-pointing)
-    auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(currentOrientation, Matrix3d::Identity());
+    Vector3d rotVec = calculateRotationVector(currentOrientation, Matrix3d::Identity());
+    double rotAngle = rotVec.norm();
 
     // Create find sun rotation command using default velocity/acceleration
-    RotationCommand findSunCommand(rotAxis.normalized(), rotAngle, refVelocity, refAcceleration);
+    RotationCommand findSunCommand(rotVec.normalized(), rotAngle);
 
     // Create a temporary queue to prepend the find sun command
     queue<RotationCommand> tempQueue;
@@ -324,36 +323,36 @@ void AttitudeControl::prependFindSunRotation()
     rotationQueue = move(tempQueue);
 
     cout << "[AttitudeControl] Find Sun rotation prepended to queue:" << endl;
-    cout << "[AttitudeControl]   Axis: " << rotAxis.normalized().transpose() << endl;
+    cout << "[AttitudeControl]   Axis: " << rotVec.normalized().transpose() << endl;
     cout << "[AttitudeControl]   Angle (rad): " << rotAngle << endl;
     cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(rotAngle) << endl;
     cout << "[AttitudeControl]   Total commands in queue: " << rotationQueue.size() << endl;
 }
 
-Vector3d AttitudeControl::cascadeControl(Matrix3d target, Matrix3d current, Vector3d refAngularVelocityVec)
+Vector3d AttitudeControl::cascadeControl(const Matrix3d &targetOrientation, const Matrix3d &currentOrientation, const Vector3d &targetAngularVelocityVec, const Vector3d &currentAngularVelocityVec)
 {
     // Calculate the position error
-    auto [rotAxis, rotAngle] = calculateRotationAxisAndAngle(target, current);
-    rotAxis = rotAxis.normalized();
-    Vector3d positionError = current.transpose() * (rotAxis * rotAngle);
+    Vector3d positionError = calculateRotationVector(targetOrientation, currentOrientation);
+    Vector3d angularVelocity = targetAngularVelocityVec;
 
     // Outer loop output
     Vector3d omegaRefBody;
     omegaRefBody(0) = xPositionLoop.calculate(0, positionError(0));
+    cout << omegaRefBody(0) << "    " << angularVelocity(0) << endl;
     omegaRefBody(1) = yPositionLoop.calculate(0, positionError(1));
     omegaRefBody(2) = zPositionLoop.calculate(0, positionError(2));
-    Vector3d omegaCmdBody = omegaRefBody + refAngularVelocityVec;
+    Vector3d omegaCmdBody = omegaRefBody + angularVelocity;
 
     // Feed into inner velocity loop
     Vector3d torque;
-    torque(0) = xVelocityLoop.calculate(omegaCmdBody(0), angularVelocityVec(0));
-    torque(1) = yVelocityLoop.calculate(omegaCmdBody(1), angularVelocityVec(1));
-    torque(2) = zVelocityLoop.calculate(omegaCmdBody(2), angularVelocityVec(2));
+    torque(0) = xVelocityLoop.calculate(omegaCmdBody(0), currentAngularVelocityVec(0));
+    torque(1) = yVelocityLoop.calculate(omegaCmdBody(1), currentAngularVelocityVec(1));
+    torque(2) = zVelocityLoop.calculate(omegaCmdBody(2), currentAngularVelocityVec(2));
 
     return torque;
 };
 
-void AttitudeControl::initializeMovingProfile(const Matrix3d& currentOrientation)
+void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation)
 {
     // Reset moving profile variables
     movingProfileVelocity = 0.0;
@@ -383,7 +382,7 @@ void AttitudeControl::initializeMovingProfile(const Matrix3d& currentOrientation
         deltaTheta = 0; // No move configured
         cout << "[AttitudeControl] No rotation configured - queue is empty" << endl;
     }
-    
+
     double time = GetTimeNow();
 
     // Use parameters from current rotation command
@@ -433,8 +432,8 @@ std::pair<Vector3d, Matrix3d> AttitudeControl::calculateMotionProfile(double tim
     Vector3d inertialVelocityVec = movingProfileRotAxis * movingProfileVelocity;
 
     // Calculate target orientation by rotating starting orientation by profile angle
-    AngleAxis aa(movingProfileAngle, movingProfileRotAxis);
-    Matrix3d targetOrientation = startingOrientation * aa.toRotationMatrix();
+    Matrix3d rotMat = calculateRotationMatrix(movingProfileRotAxis * movingProfileAngle);
+    Matrix3d targetOrientation = startingOrientation * rotMat;
 
     return std::make_pair(inertialVelocityVec, targetOrientation);
 }
@@ -445,14 +444,3 @@ Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVect
     return (1.0 - a) * curVector + a * prevVector;
 }
 
-// Helper function to calculate rotation axis and angle between two rotation matrices
-pair<Vector3d, double> calculateRotationAxisAndAngle(const Matrix3d &fromMatrix, const Matrix3d &toMatrix)
-{
-    Matrix3d rotation = BodyToBody(fromMatrix, toMatrix);
-    AngleAxisd angleAxis{rotation};
-
-    Vector3d rotAxis = angleAxis.axis();
-    double rotAngle = angleAxis.angle();
-
-    return make_pair(rotAxis, rotAngle);
-}

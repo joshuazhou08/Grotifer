@@ -25,7 +25,6 @@ struct ControlLoops {
 // Attitude Control state enum
 enum AttitudeControlState
 {
-    INITIALIZING = 0,
     DETERMINING_ATTITUDE = 1,
     INITIALIZING_MOTION = 2,
     DETUMBLING = 3,
@@ -110,27 +109,30 @@ private:
      * @param torque The torque vector to apply
      * @param deltaT The change in time from previous state
      */
-    void applyTorque(Vector3d torque, double deltaT);
+    void applyTorque(const Vector3d& torque, double deltaT);
 
     /**
      * @brief Sets the holding position and configures the right flags
-     * @param position The position to hold
+     * @param orientation The position to hold
      */
-    void setHoldingPosition(Matrix3d position);
+    void setHoldingPosition(const Matrix3d& orientation);
 
     /**
      * @brief Calculates and prepends the find sun rotation command to the front of the queue
+     * @param currentOrientation The current orientation the satellite is in
      * This calculates the rotation needed to go from current orientation to identity matrix
      */
-    void prependFindSunRotation();
+    void prependFindSunRotation(const Matrix3d& currentOrientation);
 
     /**
      * @brief uses a cascaded controller to output the torque signal to follow a target
-     * @param target Where you want to be
-     * @param current Where you currently are
+     * @param targetOrientation Where you want to be
+     * @param currentOrientation Where you currently are
+     * @param targetAngularVelocityVec Angular velocity you want to hold
+     * @param currentAngularVelocityVec
      * @return torque to apply
      */
-    Vector3d cascadeControl(Matrix3d target, Matrix3d current, Vector3d refAngularVelocityVec);
+    Vector3d cascadeControl(const Matrix3d& targetOrientation, const Matrix3d& currentOrientation, const Vector3d& targetAngularVelocityVec, const Vector3d& currentAngularVelocityVec);
 
     /**
      * @brief Initializes the moving profile for the next rotation in the queue
