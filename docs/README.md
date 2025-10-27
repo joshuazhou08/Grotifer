@@ -48,6 +48,12 @@ ls /usr/local/include | grep labjackusb
 
 For Maxon stuff, download the Epos and ftd2xx libraries [here](https://drive.google.com/drive/folders/1fGORTzJLLv8IFwaYweX2cKQKk2AuIADm?usp=sharing)
 
+- Put the libEposCmd.so and libftd2xx.so in /usr/local/lib
+
+```bash
+cp libEposCmd.so libftd2xx.so /usr/local/lib
+```
+
 ## Deploying On The Pi
 
 On your windows machine, download the **sftp extension** by **Natizyskunk** in vs code.
