@@ -147,4 +147,11 @@ private:
      * @return Pair of (inertial frame angular velocity vector, target orientation matrix)
      */
     std::pair<Vector3d, Matrix3d> calculateMotionProfile(double time, double deltaT);
+
+
+    // FOR LOGGING IN SEPARATE THREAD
+    using OrientationRow = std::array <double, 10>; // timestep + 2 3 x 3 matrices (one for profile, one for actual)
+
+    LockFreeRingBuffer<OrientationRow, 2048>* orientationQueue_;
+
 };

@@ -1,6 +1,7 @@
 #include "tasks/AttitudeControlTask.hpp"
 #include "core/solvers/TriadSolver.hpp"
 #include "core/solvers/AngularVelocitySolver.hpp"
+#include "core/utils/LogHelpers.hpp"
 #include "core/utils/RotationHelpers.hpp"
 #include "core/utils/TimeUtils.hpp"
 #include "core/control/PIControl.hpp"
@@ -52,6 +53,9 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
     rotationQueueInitialized = true;
 
     cout << "[AttitudeControl] Moves planned" << endl;
+
+    // Initialize Logging in Separate Thread
+    orientationQueue_ = addQueue<OrientationRow, 2048>("orientation.csv");
 }
 
 AttitudeControl::~AttitudeControl()
@@ -88,6 +92,7 @@ int AttitudeControl::Run()
 
     // Get the current orientation and the angular velocity
     Matrix3d currentOrientation = TriadSolver::solve(thxIncl, thzIncl, thySun, thzSun);
+
     Vector3d angularVelocityVec{{0.0, 0.0, 0.0}};
 
     if (prevOrientation.isZero()) // Initial state has not been set
@@ -105,7 +110,6 @@ int AttitudeControl::Run()
     angularVelocityVec = currentOrientation.transpose() * AngularVelocitySolver::solve(prevOrientation, currentOrientation, deltaT); // convert angular velocity to body fixed frame
     prevOrientation = currentOrientation;
 
-    // TODO: Add logging
 
     // Fresh delta T for going into the switch statement
     deltaT = GetTimeNow() - preTime;
@@ -272,8 +276,16 @@ int AttitudeControl::Run()
     }
     }
 
+    // Log
+    double t = GetTimeNow();
+    OrientationRow currentOrientationRow = LogHelpers::flattenWithTime(t, currentOrientation);
+    orientationQueue_ -> push(currentOrientationRow);
+
     // Update preTime for next iteration
     preTime = time;
+
+
+    
 
     nextTaskTime += deltaTaskTime;
     timeEnd = GetTimeNow();

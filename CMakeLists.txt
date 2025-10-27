@@ -33,7 +33,7 @@ target_include_directories(mainExe
 
 # === External Dependencies ===
 find_package(Eigen3 REQUIRED NO_MODULE)
-target_link_libraries(mainExe PRIVATE Eigen3::Eigen)
+find_package(Threads REQUIRED)
 
 # === System-installed Hardware Libraries ===
 # These .so files should be installed on the system (e.g. /usr/local/lib)
@@ -70,6 +70,9 @@ target_link_libraries(mainExe PRIVATE
     ${LIB_LABJACK}
     ${LIB_FTD2XX}
     ${LIB_MODBUS}
+    Threads::Threads
+    Eigen3::Eigen
+    stdc++fs
 )
 
 # === External Libraries ===
