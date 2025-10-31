@@ -8,7 +8,6 @@
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 
-
 struct AttitudeConfig
 {
 
@@ -22,7 +21,7 @@ struct AttitudeConfig
     // --- Flags For Configuring Behavior --- //
     static inline constexpr bool initialKick = false; // Perform initial kick to demonstrate detumbling capabilities
 
-    static inline constexpr double deltaTaskTime = 50e-3;
+    static inline constexpr double deltaTaskTime = 25e-3;
 
     // Fans
     static inline constexpr double torqueToSpeed = 40000;
@@ -71,7 +70,7 @@ struct AttitudeConfig
     // --- Arbitrary Rotation Configuration --- //
 
     // Enable automatic find sun operation after detumbling
-    static inline constexpr bool enableFindSun = false;
+    static inline constexpr bool enableFindSun = true;
 
     // Enable arbitrary rotations (if false, no additional rotations after find sun)
     static inline constexpr bool enableArbitraryRotations = true;
@@ -80,7 +79,7 @@ struct AttitudeConfig
     static inline std::vector<RotationCommand> getRotationQueue()
     {
         return {
-            RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 15.0)// IN RADIANS
+            RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 30.0) // IN RADIANS
             // RotationCommand(Vector3d{1.0, 1.0, 1.0}, M_PI / 12.0, vel, accel), // IN RADIANS
             // RotationCommand(Vector3d{1.0, 0.0, 0.0}, M_PI / 12.0, vel, accel)   // IN RADIANS
         };

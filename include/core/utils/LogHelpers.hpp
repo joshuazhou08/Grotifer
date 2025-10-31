@@ -29,7 +29,7 @@ inline std::array<double, 4>flattenWithTime(double t, const Vector3d& V)
 
     int k = 1;
     for (int i = 0; i < 3; ++i) {        
-        row[i] = V(i);
+        row[i + 1] = V(i);
     }
     return row;
 }
