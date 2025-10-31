@@ -2,8 +2,25 @@
 #include <Eigen/Dense>
 #include <cmath>
 
+using namespace Eigen;
+
+// Structure to define a rotation command
+struct RotationCommand
+{
+    Vector3d axis;       // Rotation axis (will be normalized)
+    double angle;        // Rotation angle in radians
+    double velocity;     // Maximum velocity for this move [rad/s]
+    double acceleration; // Acceleration for this move [rad/s^2]
+
+    RotationCommand(Vector3d rotAxis, double rotAngle, double vel = 0.01, double accel = 2.0e-3)
+        : axis(rotAxis), angle(rotAngle), velocity(vel), acceleration(accel) {}
+
+    RotationCommand()   // Default Initializer
+        : axis(Eigen::Vector3d::UnitX()), angle(0.0), velocity(0.01), acceleration(2.0e-3) {}
+
+};
+
 namespace RotationHelpers {
-    using namespace Eigen;
     // Compute incremental rotation matrix between two body orientations.
     inline Matrix3d BodyToBody(const Matrix3d& prevRotMat,
                                       const Matrix3d& curRotMat)

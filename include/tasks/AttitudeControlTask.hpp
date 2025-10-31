@@ -5,7 +5,7 @@
 #include <fstream>
 #include <queue>
 #include <Eigen/Dense>
-#include "Config.hpp"
+#include "core/solvers/MotionProfileSolver.hpp"
 #include "hardware/sensors/Sensors.hpp"
 #include "hardware/actuators/ThreeAxisActuator.hpp"
 
@@ -77,19 +77,8 @@ private:
     Matrix3d holdingPosition{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
     // FOR MOVING PROFILE
-    double movingProfileAccelerationEndTime; // accelerate before this time is reached
-    double movingProfileConstantEndTime;     // constant velocity before this time is reached
-    double movingProfileDecelerationEndTime; // decelerate before this time is reached (also the end of the move profile)
-    bool movingProfileCalculated = false;    // true if the moving profile has been calculated (e. g. the times above have been set)
-    double refVelocity = 0.02;       // [rad/s] The constant velocity of the moving profile
-    double refAcceleration = 4.0e-3; // [rad/s^2] The constant acceleration/deceleration of the moving profile
     Matrix3d startingOrientation{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
-
-    // moving profile variables
-    double movingProfileVelocity = 0.0;
-    double movingProfileAngle = 0.0;
-    double deltaTheta = 0.0;
-    Vector3d movingProfileRotAxis{{0.0, 0.0, 0.0}};
+    MotionProfileSolver motionSolver_;
 
     // Rotation queue management
     std::queue<RotationCommand> rotationQueue;
@@ -153,5 +142,4 @@ private:
     using OrientationRow = std::array <double, 10>; // timestep + 2 3 x 3 matrices (one for profile, one for actual)
 
     LockFreeRingBuffer<OrientationRow, 2048>* orientationQueue_;
-
 };

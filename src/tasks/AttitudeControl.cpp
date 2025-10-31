@@ -232,7 +232,7 @@ int AttitudeControl::Run()
     case MOVING:
     {
         // Calculate motion profile velocity and target orientation
-        auto [inertialVelocityVec, movingProfileOrientation] = calculateMotionProfile(time, deltaT);
+        auto [inertialVelocityVec, movingProfileOrientation] = motionSolver_.solve(time, deltaT, startingOrientation);
 
         // Convert inertial velocity to body frame
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
@@ -245,12 +245,13 @@ int AttitudeControl::Run()
 
         // Check if current move is complete
         double maxComponent = error.cwiseAbs().maxCoeff();
-        if (time > movingProfileDecelerationEndTime && maxComponent <= 4.5e-3)
+        if (time > motionSolver_.isDone(time) && maxComponent <= 4.5e-3)
         {
             // Check if there are more moves in the queue
             if (!rotationQueue.empty())
             {
                 cout << "[AttitudeControl] Current move done! Preparing next move from queue" << endl;
+                motionSolver_.reset();
                 initializeMovingProfile(currentOrientation);
                 nextState = MOVING;
                 nextStateName = "Moving";
@@ -262,7 +263,6 @@ int AttitudeControl::Run()
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
                 cout << "[AttitudeControl] All moves completed! Holding final position" << endl;
-                movingProfileCalculated = false;
             }
         }
         else
@@ -366,89 +366,42 @@ Vector3d AttitudeControl::cascadeControl(const Matrix3d &targetOrientation, cons
 
 void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation)
 {
-    // Reset moving profile variables
-    movingProfileVelocity = 0.0;
-    movingProfileAngle = 0.0;
-    movingProfileRotAxis << 0.0, 0.0, 0.0;
+    // Capture current orientation
     startingOrientation = currentOrientation;
 
-    // Get the next rotation from the queue
-    if (!rotationQueue.empty())
+    // Ensure there’s a command available
+    if (rotationQueue.empty())
     {
-        currentRotationCommand = rotationQueue.front();
-        rotationQueue.pop();
-
-        deltaTheta = currentRotationCommand.angle;
-        movingProfileRotAxis = currentRotationCommand.axis.normalized();
-
-        cout << "[AttitudeControl] Executing Rotation Command:" << endl;
-        cout << "[AttitudeControl]   Axis: " << movingProfileRotAxis.transpose() << endl;
-        cout << "[AttitudeControl]   Angle (rad): " << deltaTheta << endl;
-        cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(deltaTheta) << endl;
-        cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << endl;
-        cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << endl;
-        cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << endl;
-    }
-    else
-    {
-        deltaTheta = 0; // No move configured
-        cout << "[AttitudeControl] No rotation configured - queue is empty" << endl;
+        std::cout << "[AttitudeControl] No rotation configured - queue is empty" << std::endl;
+        return;
     }
 
-    double time = GetTimeNow();
+    // Pop the next command
+    currentRotationCommand = rotationQueue.front();
+    rotationQueue.pop();
 
-    // Use parameters from current rotation command
-    double moveVelocity = currentRotationCommand.velocity;
-    double moveAcceleration = currentRotationCommand.acceleration;
+    // Normalize the axis
+    currentRotationCommand.axis.normalize();
 
-    double accelDuration = abs(moveVelocity / moveAcceleration) + 2 * deltaTaskTime;
-    double constantDuration = abs(deltaTheta / moveVelocity) + 2 * deltaTaskTime;
-    double deccelDuration = accelDuration;
+    // Log details
+    std::cout << "[AttitudeControl] Executing Rotation Command:" << std::endl;
+    std::cout << "[AttitudeControl]   Axis: " << currentRotationCommand.axis.transpose() << std::endl;
+    std::cout << "[AttitudeControl]   Angle (rad): " << currentRotationCommand.angle << std::endl;
+    std::cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(currentRotationCommand.angle) << std::endl;
+    std::cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << std::endl;
+    std::cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << std::endl;
+    std::cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << std::endl;
 
-    movingProfileAccelerationEndTime = time + accelDuration;
-    movingProfileConstantEndTime = time + accelDuration + constantDuration;
-    movingProfileDecelerationEndTime = time + accelDuration + constantDuration + deccelDuration;
-    movingProfileCalculated = true;
+    // Initialize motion profile solver
+    double timeNow = GetTimeNow();
+    motionSolver_.initialize(currentRotationCommand, timeNow, deltaTaskTime);
 
-    cout << "[AttitudeControl] Moving Profile Calculated" << endl;
-    cout << "[AttitudeControl]   Acceleration End Time: " << movingProfileAccelerationEndTime << endl;
-    cout << "[AttitudeControl]   Constant End Time: " << movingProfileConstantEndTime << endl;
-    cout << "[AttitudeControl]   Deceleration End Time: " << movingProfileDecelerationEndTime << endl;
+    std::cout << "[AttitudeControl] MotionProfileSolver initialized" << std::endl;
+    std::cout << "[AttitudeControl]   Acceleration End Time: " << motionSolver_.accelEnd() << std::endl;
+    std::cout << "[AttitudeControl]   Constant End Time: " << motionSolver_.constEnd() << std::endl;
+    std::cout << "[AttitudeControl]   Deceleration End Time: " << motionSolver_.decelEnd() << std::endl;
 }
 
-std::pair<Vector3d, Matrix3d> AttitudeControl::calculateMotionProfile(double time, double deltaT)
-{
-    // Update velocity and angle based on current phase
-    if (time < movingProfileAccelerationEndTime)
-    {
-        movingProfileVelocity = movingProfileVelocity + currentRotationCommand.acceleration * deltaT;
-        movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
-    }
-    else if (time < movingProfileConstantEndTime)
-    {
-        movingProfileVelocity = currentRotationCommand.velocity;
-        movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
-    }
-    else if (time < movingProfileDecelerationEndTime)
-    {
-        movingProfileVelocity = movingProfileVelocity - currentRotationCommand.acceleration * deltaT;
-        movingProfileAngle = movingProfileAngle + movingProfileVelocity * deltaT;
-    }
-    else
-    {
-        movingProfileVelocity = 0.0;
-        movingProfileAngle = deltaTheta;
-    }
-
-    // Calculate inertial frame angular velocity vector
-    Vector3d inertialVelocityVec = movingProfileRotAxis * movingProfileVelocity;
-
-    // Calculate target orientation by rotating starting orientation by profile angle
-    Matrix3d rotMat = calculateRotationMatrix(movingProfileRotAxis * movingProfileAngle);
-    Matrix3d targetOrientation = startingOrientation * rotMat;
-
-    return std::make_pair(inertialVelocityVec, targetOrientation);
-}
 
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
 {

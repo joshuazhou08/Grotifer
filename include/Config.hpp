@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/utils/RotationHelpers.hpp"
 #include <vector>
 #include <queue>
 #include <Eigen/Dense>
@@ -7,17 +8,7 @@
 using Eigen::Matrix3d;
 using Eigen::Vector3d;
 
-// Structure to define a rotation command
-struct RotationCommand
-{
-    Vector3d axis;       // Rotation axis (will be normalized)
-    double angle;        // Rotation angle in radians
-    double velocity;     // Maximum velocity for this move [rad/s]
-    double acceleration; // Acceleration for this move [rad/s^2]
 
-    RotationCommand(Vector3d rotAxis, double rotAngle, double vel = 0.01, double accel = 2.0e-3)
-        : axis(rotAxis), angle(rotAngle), velocity(vel), acceleration(accel) {}
-};
 struct AttitudeConfig
 {
 
