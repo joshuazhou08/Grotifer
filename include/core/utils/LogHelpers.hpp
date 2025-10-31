@@ -22,4 +22,16 @@ inline std::array<double, 10> flattenWithTime(double t, const Matrix3d& R)
     return row;
 }
 
+inline std::array<double, 4>flattenWithTime(double t, const Vector3d& V)
+{
+    std::array<double, 4> row;
+    row[0] = t;
+
+    int k = 1;
+    for (int i = 0; i < 3; ++i) {        
+        row[i] = V(i);
+    }
+    return row;
+}
+
 } // namespace LogHelpers

@@ -2,6 +2,7 @@
 #include "core/solvers/TriadSolver.hpp"
 #include "core/solvers/AngularVelocitySolver.hpp"
 #include "core/utils/LogHelpers.hpp"
+#include "core/Filters.hpp"
 #include "core/utils/RotationHelpers.hpp"
 #include "core/utils/TimeUtils.hpp"
 #include "core/control/PIControl.hpp"
@@ -20,8 +21,7 @@ using namespace std;
 using namespace Eigen;
 using namespace RotationHelpers;
 using namespace TimeUtils;
-// Forward delcaration for helpers
-Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
+
 // Forward declaration for new timeout velocity command to motor
 AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
                                  Sensor &sunSensor,
@@ -55,7 +55,11 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
     cout << "[AttitudeControl] Moves planned" << endl;
 
     // Initialize Logging in Separate Thread
-    orientationQueue_ = addQueue<OrientationRow, 2048>("orientation.csv");
+    orientationQueue_ = addQueue<OrientationRow, 1024>("orientation.csv");
+    profileOrientationQueue_ = addQueue<OrientationRow, 1024>("profile_orientation.csv");
+
+    angularVelocityQueue_ = addQueue<VectorRow, 1024>("angular_velocity.csv");
+    profileAngularVelocityQueue_ = addQueue<VectorRow, 1024>("profile_angular_velocity.csv");
 }
 
 AttitudeControl::~AttitudeControl()
@@ -108,11 +112,9 @@ int AttitudeControl::Run()
 
     // Calculate the angular velocity
     angularVelocityVec = currentOrientation.transpose() * AngularVelocitySolver::solve(prevOrientation, currentOrientation, deltaT); // convert angular velocity to body fixed frame
+    angularVelocityVec = emaFilter3d(AttitudeConfig::fc, deltaT, angularVelocityVec, preAngularVelocityVec);
+    preAngularVelocityVec = angularVelocityVec;
     prevOrientation = currentOrientation;
-
-
-    // Fresh delta T for going into the switch statement
-    deltaT = GetTimeNow() - preTime;
 
     switch (state)
     {
@@ -234,6 +236,12 @@ int AttitudeControl::Run()
         // Calculate motion profile velocity and target orientation
         auto [inertialVelocityVec, movingProfileOrientation] = motionSolver_.solve(time, deltaT, startingOrientation);
 
+        OrientationRow orientationRow = LogHelpers::flattenWithTime(time, currentOrientation);
+        VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, angularVelocityVec);
+
+        profileOrientationQueue_->push(orientationRow);
+        profileAngularVelocityQueue_->push(angularVelocityRow);
+
         // Convert inertial velocity to body frame
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
 
@@ -245,7 +253,7 @@ int AttitudeControl::Run()
 
         // Check if current move is complete
         double maxComponent = error.cwiseAbs().maxCoeff();
-        if (time > motionSolver_.isDone(time) && maxComponent <= 4.5e-3)
+        if (motionSolver_.isDone(time) && maxComponent <= 4.5e-3)
         {
             // Check if there are more moves in the queue
             if (!rotationQueue.empty())
@@ -276,16 +284,15 @@ int AttitudeControl::Run()
     }
     }
 
-    // Log
-    double t = GetTimeNow();
-    OrientationRow currentOrientationRow = LogHelpers::flattenWithTime(t, currentOrientation);
-    orientationQueue_ -> push(currentOrientationRow);
+    // Log actual state
+    OrientationRow orientationRow = LogHelpers::flattenWithTime(time, currentOrientation);
+    VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, angularVelocityVec);
+
+    orientationQueue_->push(orientationRow);
+    angularVelocityQueue_->push(angularVelocityRow);
 
     // Update preTime for next iteration
     preTime = time;
-
-
-    
 
     nextTaskTime += deltaTaskTime;
     timeEnd = GetTimeNow();
@@ -350,7 +357,6 @@ Vector3d AttitudeControl::cascadeControl(const Matrix3d &targetOrientation, cons
     // Outer loop output
     Vector3d omegaRefBody;
     omegaRefBody(0) = xPositionLoop.calculate(0, positionError(0));
-    cout << omegaRefBody(0) << "    " << angularVelocity(0) << endl;
     omegaRefBody(1) = yPositionLoop.calculate(0, positionError(1));
     omegaRefBody(2) = zPositionLoop.calculate(0, positionError(2));
     Vector3d omegaCmdBody = omegaRefBody + angularVelocity;
@@ -401,11 +407,3 @@ void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation
     std::cout << "[AttitudeControl]   Constant End Time: " << motionSolver_.constEnd() << std::endl;
     std::cout << "[AttitudeControl]   Deceleration End Time: " << motionSolver_.decelEnd() << std::endl;
 }
-
-
-Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector)
-{
-    double a = exp(-2 * M_PI * fc * dt);
-    return (1.0 - a) * curVector + a * prevVector;
-}
-

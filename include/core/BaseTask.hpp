@@ -73,10 +73,9 @@ private: // For logging in separate thread
                 throw std::runtime_error("Failed to open log file: " + fullPath);
         }
 
-    LockFreeRingBuffer<T, N> queue;
-    std::ofstream file;
-
-
+        LockFreeRingBuffer<T, N> queue;
+        std::ofstream file;
+        
         void flush() override {
             std::vector<T> batch;
             batch.reserve(256);

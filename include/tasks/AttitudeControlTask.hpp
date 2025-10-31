@@ -140,6 +140,11 @@ private:
 
     // FOR LOGGING IN SEPARATE THREAD
     using OrientationRow = std::array <double, 10>; // timestep + 2 3 x 3 matrices (one for profile, one for actual)
+    using VectorRow = std::array <double, 4>;      // timestep + 3 components
 
-    LockFreeRingBuffer<OrientationRow, 2048>* orientationQueue_;
+    LockFreeRingBuffer<OrientationRow, 1024>* orientationQueue_;
+    LockFreeRingBuffer<OrientationRow, 1024>* profileOrientationQueue_;
+    LockFreeRingBuffer<VectorRow, 1024>*    angularVelocityQueue_;
+    LockFreeRingBuffer<VectorRow, 1024>*    profileAngularVelocityQueue_;
+
 };
