@@ -236,14 +236,15 @@ int AttitudeControl::Run()
         // Calculate motion profile velocity and target orientation
         auto [inertialVelocityVec, movingProfileOrientation] = motionSolver_.solve(time, deltaT, startingOrientation);
 
-        OrientationRow orientationRow = LogHelpers::flattenWithTime(time, currentOrientation);
-        VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, angularVelocityVec);
-
-        profileOrientationQueue_->push(orientationRow);
-        profileAngularVelocityQueue_->push(angularVelocityRow);
-
         // Convert inertial velocity to body frame
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
+
+
+        OrientationRow orientationRow = LogHelpers::flattenWithTime(time, currentOrientation);
+        VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, refAngularVelocityVec);
+
+        profileOrientationQueue_->push(orientationRow);
+        profileAngularVelocityQueue_->push(refAngularVelocityVec);
 
         Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec, angularVelocityVec);
 
