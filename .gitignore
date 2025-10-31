@@ -1,2 +1,5 @@
 build/
 .vscode/
+logs/
+*.mp4
+.venv
