@@ -6,7 +6,8 @@ using namespace Eigen;
 
 void MotionProfileSolver::initialize(const RotationCommand &command,
                                      double currentTime,
-                                     double deltaTaskTime)
+                                     double deltaTaskTime,
+                                     const Matrix3d& startingOrientation)
 {
     command_ = command;
     velocity_ = 0.0;
@@ -20,18 +21,19 @@ void MotionProfileSolver::initialize(const RotationCommand &command,
     accelerationEnd_ = currentTime + accelDur;
     constantEnd_ = currentTime + accelDur + constDur;
     decelerationEnd_ = currentTime + accelDur + constDur + deccelDur;
+    startingOrientation_ = startingOrientation;
     initialized_ = true;
 
     std::cout << "[MotionProfileSolver] Initialized motion profile" << std::endl;
 }
 
 std::pair<Vector3d, Matrix3d>
-MotionProfileSolver::solve(double time, double deltaT, const Matrix3d &startingOrientation)
+MotionProfileSolver::solve(double time, double deltaT)
 {
     if (!initialized_)
     {
         std::cerr << "[MotionProfileSolver] Warning: solve() called before initialize()" << std::endl;
-        return {Vector3d::Zero(), startingOrientation};
+        return {Vector3d::Zero(), startingOrientation_};
     }
 
     // Update velocity & angle based on motion phase
@@ -49,7 +51,7 @@ MotionProfileSolver::solve(double time, double deltaT, const Matrix3d &startingO
     // Compute inertial velocity and orientation
     Vector3d inertialVel = axis_ * velocity_;
     Matrix3d rotMat = RotationHelpers::calculateRotationMatrix(axis_ * angle_);
-    Matrix3d targetOrientation = startingOrientation * rotMat;
+    Matrix3d targetOrientation = startingOrientation_ * rotMat;
 
     return {inertialVel, targetOrientation};
 }

@@ -234,7 +234,7 @@ int AttitudeControl::Run()
     case MOVING:
     {
         // Calculate motion profile velocity and target orientation
-        auto [inertialVelocityVec, movingProfileOrientation] = motionSolver_.solve(time, deltaT, startingOrientation);
+        auto [inertialVelocityVec, movingProfileOrientation] = motionSolver_.solve(time, deltaT);
 
         // Convert inertial velocity to body frame
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
@@ -244,7 +244,7 @@ int AttitudeControl::Run()
         VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, refAngularVelocityVec);
 
         profileOrientationQueue_->push(orientationRow);
-        profileAngularVelocityQueue_->push(refAngularVelocityVec);
+        profileAngularVelocityQueue_->push(angularVelocityRow);
 
         Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec, angularVelocityVec);
 
@@ -374,7 +374,6 @@ Vector3d AttitudeControl::cascadeControl(const Matrix3d &targetOrientation, cons
 void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation)
 {
     // Capture current orientation
-    startingOrientation = currentOrientation;
 
     // Ensure there’s a command available
     if (rotationQueue.empty())
@@ -401,7 +400,7 @@ void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation
 
     // Initialize motion profile solver
     double timeNow = GetTimeNow();
-    motionSolver_.initialize(currentRotationCommand, timeNow, deltaTaskTime);
+    motionSolver_.initialize(currentRotationCommand, timeNow, deltaTaskTime, currentOrientation);
 
     std::cout << "[AttitudeControl] MotionProfileSolver initialized" << std::endl;
     std::cout << "[AttitudeControl]   Acceleration End Time: " << motionSolver_.accelEnd() << std::endl;

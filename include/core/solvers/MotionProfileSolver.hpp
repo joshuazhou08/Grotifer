@@ -11,13 +11,15 @@ class MotionProfileSolver
 public:
     MotionProfileSolver() = default;
 
+
     void initialize(const RotationCommand &command,
                     double currentTime,
-                    double deltaTaskTime);
+                    double deltaTaskTime,
+                    const Matrix3d& startingOrientation);
+
 
     std::pair<Vector3d, Matrix3d> solve(double time,
-                                        double deltaT,
-                                        const Matrix3d &startingOrientation);
+                                        double deltaT);
     
     inline bool initialized() const { return initialized_; }
     inline double accelEnd() const { return accelerationEnd_; }
@@ -41,6 +43,7 @@ private:
     double angle_ = 0.0;
     Vector3d axis_ = Vector3d::Zero();
     RotationCommand command_;
+    Matrix3d startingOrientation_ = Matrix3d::Zero();
 
     double accelerationEnd_ = 0.0;
     double constantEnd_ = 0.0;
