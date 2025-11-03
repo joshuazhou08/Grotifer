@@ -14,14 +14,17 @@ void MotionProfileSolver::initialize(const RotationCommand &command,
     angle_ = 0.0;
     axis_ = command.axis.normalized();
 
-    double accelDur = std::abs(command.velocity / command.acceleration) + deltaTaskTime;
-    double constDur = std::abs(command.angle / command.velocity) + deltaTaskTime;
+    double accelDur = std::abs(command.velocity / command.acceleration);
+    double constDur = std::abs(command.angle / command.velocity);
     double deccelDur = accelDur;
 
     accelerationEnd_ = currentTime + accelDur;
     constantEnd_ = currentTime + accelDur + constDur;
     decelerationEnd_ = currentTime + accelDur + constDur + deccelDur;
     startingOrientation_ = startingOrientation;
+    endingOrientation_ = startingOrientation * RotationHelpers::calculateRotationMatrix(axis_ * command.angle);
+    endingAngle_ = command.angle;
+
     initialized_ = true;
 
     std::cout << "[MotionProfileSolver] Initialized motion profile" << std::endl;
@@ -43,9 +46,10 @@ MotionProfileSolver::solve(double time, double deltaT)
         velocity_ = command_.velocity;
     else if (time < decelerationEnd_)
         velocity_ -= command_.acceleration * deltaT;
-    else
-        velocity_ = 0.0;
-
+    else {
+        angle_ = endingAngle_;
+        return { Vector3d::Zero(), endingOrientation_};
+    }
     angle_ += velocity_ * deltaT;
 
     // Compute inertial velocity and orientation

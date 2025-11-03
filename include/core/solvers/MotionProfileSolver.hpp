@@ -33,7 +33,7 @@ public:
 
     // Done when we’ve passed decel end and are effectively at target
     inline bool isDone(double time, double angleTolerance = 1e-6, double velTolerance = 1e-6) const { 
-        return time >= decelerationEnd_;
+        return time - 1 >= decelerationEnd_;       // 1 second grace
     }
 
     inline void reset() { initialized_ = false; }  // let AttitudeControl decide when to reset
@@ -44,6 +44,8 @@ private:
     Vector3d axis_ = Vector3d::Zero();
     RotationCommand command_;
     Matrix3d startingOrientation_ = Matrix3d::Zero();
+    Matrix3d endingOrientation_ = Matrix3d::Zero();
+    double endingAngle_ = 0.0;
 
     double accelerationEnd_ = 0.0;
     double constantEnd_ = 0.0;

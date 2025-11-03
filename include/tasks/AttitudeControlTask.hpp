@@ -46,6 +46,7 @@ public:
 
     ~AttitudeControl() override;
     int Run() override;
+    inline bool findSunDone() { return findSunDone_; };
 
 private:
 
@@ -92,6 +93,9 @@ private:
     PIControl xPositionLoop;
     PIControl yPositionLoop;
     PIControl zPositionLoop;
+
+    // State
+    bool findSunDone_ = true;
 
     /**
      * @brief Applies torque with sign correction for Y and Z axes
@@ -140,11 +144,13 @@ private:
 
     // FOR LOGGING IN SEPARATE THREAD
     using OrientationRow = std::array <double, 10>; // timestep + 2 3 x 3 matrices (one for profile, one for actual)
-    using VectorRow = std::array <double, 4>;      // timestep + 3 components
+    using VectorRow = std::array <double, 4>;       // timestep + 3 components
+    using ProfileRow = std::array <double, 3>;      // timestep + profile angle + profile velocity
 
-    LockFreeRingBuffer<OrientationRow, 1024>* orientationQueue_;
-    LockFreeRingBuffer<OrientationRow, 1024>* profileOrientationQueue_;
-    LockFreeRingBuffer<VectorRow, 1024>*    angularVelocityQueue_;
-    LockFreeRingBuffer<VectorRow, 1024>*    profileAngularVelocityQueue_;
+    LockFreeRingBuffer<OrientationRow, 256>* orientationQueue_;
+    LockFreeRingBuffer<OrientationRow, 256>* profileOrientationQueue_;
+    LockFreeRingBuffer<VectorRow, 256>*      angularVelocityQueue_;
+    LockFreeRingBuffer<VectorRow, 256>*      profileAngularVelocityQueue_;
+    LockFreeRingBuffer<ProfileRow, 256>*     profileQueue_;
 
 };

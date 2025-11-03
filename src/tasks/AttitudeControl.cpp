@@ -55,11 +55,13 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
     cout << "[AttitudeControl] Moves planned" << endl;
 
     // Initialize Logging in Separate Thread
-    orientationQueue_ = addQueue<OrientationRow, 1024>("orientation.csv");
-    profileOrientationQueue_ = addQueue<OrientationRow, 1024>("profile_orientation.csv");
+    orientationQueue_ = addQueue<OrientationRow, 256>("orientation.csv");
+    profileOrientationQueue_ = addQueue<OrientationRow, 256>("profile_orientation.csv");
 
-    angularVelocityQueue_ = addQueue<VectorRow, 1024>("angular_velocity.csv");
-    profileAngularVelocityQueue_ = addQueue<VectorRow, 1024>("profile_angular_velocity.csv");
+    angularVelocityQueue_ = addQueue<VectorRow, 256>("angular_velocity.csv");
+    profileAngularVelocityQueue_ = addQueue<VectorRow, 256>("profile_angular_velocity.csv");
+
+    profileQueue_ = addQueue<ProfileRow, 256>("profile.csv");
 }
 
 AttitudeControl::~AttitudeControl()
@@ -185,10 +187,12 @@ int AttitudeControl::Run()
             if (AttitudeConfig::enableFindSun)
             {
                 prependFindSunRotation(currentOrientation);
+                findSunDone_ = false;
                 cout << "[AttitudeControl] Detumbling Done - Find Sun rotation added to queue" << endl;
             }
             else
             {
+                findSunDone_ = true;
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
 
@@ -239,12 +243,14 @@ int AttitudeControl::Run()
         // Convert inertial velocity to body frame
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
 
-
+        // Log
         OrientationRow orientationRow = LogHelpers::flattenWithTime(time, currentOrientation);
         VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, refAngularVelocityVec);
+        ProfileRow profileRow{time, motionSolver_.angleSoFar(), motionSolver_.velocityNow().norm()};
 
         profileOrientationQueue_->push(orientationRow);
         profileAngularVelocityQueue_->push(angularVelocityRow);
+        profileQueue_->push(profileRow);
 
         Vector3d torque = cascadeControl(movingProfileOrientation, currentOrientation, refAngularVelocityVec, angularVelocityVec);
 
@@ -253,8 +259,10 @@ int AttitudeControl::Run()
         applyTorque(torque, deltaT);
 
         // Check if current move is complete
-        double maxComponent = error.cwiseAbs().maxCoeff();
-        if (motionSolver_.isDone(time) && maxComponent <= 4.5e-3)
+        double maxErrorComponent = error.cwiseAbs().maxCoeff();
+        double maxVelComponent   = angularVelocityVec.cwiseAbs().maxCoeff();
+        double maxComponent      = max(maxErrorComponent, maxVelComponent / 4);
+        if (motionSolver_.isDone(time) && maxComponent <= 8.7e-3) // 8.7e-3 is 0.5 degreees
         {
             // Check if there are more moves in the queue
             if (!rotationQueue.empty())
@@ -267,7 +275,6 @@ int AttitudeControl::Run()
             }
             else
             {
-                // All moves complete, hold final position
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
