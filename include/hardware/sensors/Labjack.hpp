@@ -63,3 +63,30 @@ private:
     long resetCounters_[numCounters_];
     double counterValues_[numCounters_];
 };
+
+class LJEncoder {
+
+public:
+    LJEncoder(LabJackU6& labjack, uint16_t cpr, unsigned int tcOrder);
+    
+    ~LJEncoder(); 
+
+    // Get angular position in degrees from encoder
+    double getAngularPosDeg();
+
+    // Get counter/index
+    uint16_t getIndexCounterSignal();
+
+    // Get index flag when index is reached
+    bool getIndexFlag();
+
+protected:
+    LabJackU6& labJack_;
+    uint16_t quad_cpr = 1;
+    double pos = 0;
+    uint16_t counterVal = 0;
+    bool indexFlag = false;
+    unsigned int timerChannel = 0;
+    unsigned int counterChannel = 0;
+
+};

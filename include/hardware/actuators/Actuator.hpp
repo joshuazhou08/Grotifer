@@ -1,11 +1,22 @@
 #pragma once
 #include <Eigen/Dense>
 #include "hardware/actuators/enums.hpp"
+#include <optional>
+
+
 
 // a single actuator (fan, momentum wheel, magnetorquer, etc)
 class Actuator {
 public:
-    explicit Actuator(Axis axis) : axis_(axis) {}
+
+    // Axis-type actuator
+    explicit Actuator(Axis axis)
+        : kind_(ActuatorParam::Axis), axis_(axis), side_(Side::Unused) {}
+
+    // Side-type actuator
+    explicit Actuator(Side side)
+        : kind_(ActuatorParam::Side), axis_(Axis::Unused), side_(side) {}
+
     virtual ~Actuator() = default;
 
     // Check if the actuator is open and operational
@@ -19,9 +30,19 @@ public:
 
     // return the current speed (fan speed, motor velocity, etc.)
     virtual double getSpeed() const = 0;
+    virtual double getMotPos() const = 0;
 
-    Axis getAxis() const { return axis_; }
+    // Helpers to identify motor function:
+    bool isAxisType() const { return kind_ == ActuatorParam::Axis; }
+    bool isSideType() const { return kind_ == ActuatorParam::Side; }
+
+    // Use when numberic axis index needed
+    int axisIndex() const { return static_cast<int>(axis_); }
 
 protected:
-    Axis axis_;
+
+ActuatorParam kind_;
+Axis axis_{Axis::Unused};
+Side side_{Side::Unused};
+
 };

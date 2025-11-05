@@ -30,13 +30,27 @@ struct MaxonParameters {
     // Physical parameters
     double momentOfInertia; // Moment of inertia [kg*m^2]
     int maxVelocity;        // Maximum velocity [rpm]
+
+    // Torp homing parameters for L/R Maxon Motors
+    double homingVel;
+    double maxAcc; 
+
+    double offsetPos;
+    double offsetPosLim;
+    double startPosLim;
+
 };
 
 class MaxonMotor : public Actuator {
 public:
     // Constructor - opens motor by serial number and initializes
     // The motor will scan USB ports and open the one matching params.serialNo
+
+    // X, Y, Z Maxon Motors
     MaxonMotor(MaxonParameters& params, Axis axis);
+
+    // L & R Torp Maxon Motors
+    MaxonMotor(MaxonParameters& params, Side side);
     
     ~MaxonMotor() override;
     
@@ -44,11 +58,27 @@ public:
     bool isOpen() const override { return isOpen_; }
     void applyTorque(const Eigen::Vector3d& torqueCmd, double deltaT) override;
     Eigen::Vector3d getTorque() const override;
-    double getSpeed() const override { return getVelocity(); } // returns motor velocity in rpm
+    double getSpeed() const override { return getVelocity(); } // Returns motor velocity in rpm
+    double getMotPos() const override { return getPosition(); } // Returns motor position *** UNITS? 
 
     // MaxonMotor-specific getters
     double getVelocity() const; // Returns actual velocity in rpm
+    double getPosition() const; // Returns motor position
+
+    // MaxonMotor homing position getters
+    double getOffsetPos() { return params.offsetPos; }    // Returns offsetPos
+    double getOffsetPosLim() { return params.offsetPosLim; }  // Returns offsetPosLim
+    double getStartPosLim() { return params.startPosLim; }   // Returns startPosLim
     
+    // MaxonMotor homing movement getters
+    double getHomingVel() { return params.homingVel; }
+    double getMaxAcc() { return params.maxAcc; }
+
+    // MaxonMotor stop function
+    
+    void haltMotion();
+    bool setVelocity(int velocityRPM);
+
 private:
     void* openMotorBySerialNumber(uint32_t targetSerialNo);
     void initSettings(const MaxonParameters& params);
@@ -56,6 +86,7 @@ private:
     void setEnableState();
     void setDisableState();
     bool setVelocityCommand(int velocityRPM);
+
     
     // Static port tracking to prevent multiple motors from opening the same port
     static std::set<std::string> openPorts_;
@@ -74,10 +105,14 @@ private:
     double torqueConstant_;    // KT - torque constant [Nm/A]
     double momentOfInertia_;   // Moment of inertia [kg*m^2]
     int maxVelocity_;          // Maximum velocity [rpm]
+    double motorPos_;          // Motor position as measured by Maxon controller
     
     // State tracking
     double currentVelocity_ = 0.0;  // Accumulated velocity in rpm (double for precise integration)
     int commandedVelocity_ = 0; // Last commanded velocity in rpm (sent to motor as int)
+
+    MaxonParameters params;
+    
     bool isOpen_ = false;
 };
 

@@ -186,3 +186,31 @@ double LabJackU6::getAveVoltageAtChannel(long channel) {
     return aveVoltage;
 }
 
+LJEncoder::LJEncoder(LabJackU6& labjack, uint16_t cpr, unsigned int tcOrder) 
+    : labJack_(labjack)
+{
+    quad_cpr = 4 * cpr;
+    timerChannel = tcOrder;
+    counterChannel = tcOrder - 1;
+}
+
+LJEncoder::~LJEncoder() {}
+
+double LJEncoder::getAngularPosDeg() {
+    double countVal = labJack_.getCountsValueAtTimer(timerChannel);
+    pos = (countVal / quad_cpr) * 360.0;
+    return pos;
+}
+
+uint16_t LJEncoder::getIndexCounterSignal()
+{
+    counterVal = labJack_.getCounterValueAtCounter(counterChannel);
+    return counterVal;
+}
+
+bool LJEncoder::getIndexFlag()
+{
+    bool result = (getIndexCounterSignal() >= 1) ? true : false;
+    return result;
+}
+

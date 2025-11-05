@@ -20,6 +20,7 @@ using namespace std;
 using namespace Eigen;
 using namespace RotationHelpers;
 using namespace TimeUtils;
+
 // Forward delcaration for helpers
 Vector3d emaFilter3d(double fc, double dt, Vector3d curVector, Vector3d prevVector);
 // Forward declaration for new timeout velocity command to motor
