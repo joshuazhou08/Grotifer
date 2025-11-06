@@ -59,7 +59,18 @@ public:
     const double PI = M_PI;
     const double CONV_RAD_TO_DEG = 180 / PI;
     const double CONV_RPM_TO_RADpSEC = PI / 30;
+
+    // Setters
+    inline void enable() { enabled = true; };
     
+    // TODO: Let external classes signal it to start spining down
+    inline void spinDown() { 
+       // example: startSpinningDownFlag = true; 
+    };
+
+    // Getters
+    inline bool doneSpinningUp() { return torpDoneFlag; };     // TODO: ensure this flag is set to true when the torps are done spinning up, not when they are entirely done
+    inline bool isEnabled() { return enabled; };
 private:
 
     // Maxon and Stepper Motor actuator systems

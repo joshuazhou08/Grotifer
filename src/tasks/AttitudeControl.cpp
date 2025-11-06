@@ -196,8 +196,8 @@ int AttitudeControl::Run()
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
 
-            // Transition to MOVING if there are rotations in the queue
-            if (!rotationQueue.empty())
+            // Transition to MOVING if there are rotations in the queue and enabled
+            if (!rotationQueue.empty() && movesEnabled_)
             {
                 initializeMovingProfile(currentOrientation);
                 nextState = MOVING;
@@ -205,11 +205,14 @@ int AttitudeControl::Run()
             }
             else
             {
-                // No moves configured, just hold current position
+                // hold current position until enabled moving
                 setHoldingPosition(currentOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
-                cout << "[AttitudeControl] No rotations in queue, holding current position" << endl;
+                if (rotationQueue.empty()) {
+                    cout << "[AttitudeControl] No rotations in queue, holding current position" << endl;
+                    movesDone_ = true;
+                }
             }
         }
         else
@@ -229,9 +232,19 @@ int AttitudeControl::Run()
 
         applyTorque(torque, deltaT);
 
+        // Transition to MOVING if there are rotations in the queue and enabled
+        if (!rotationQueue.empty() && movesEnabled_)
+        {
+            initializeMovingProfile(currentOrientation);
+            nextState = MOVING;
+            nextStateName = "Moving";
+        }
+
         // Stay in HOLDING_POSITION
-        nextState = HOLDING_POSITION;
-        nextStateName = "Holding Position";
+        else {
+            nextState = HOLDING_POSITION;
+            nextStateName = "Holding Position";
+        }
         break;
     }
 
@@ -260,8 +273,8 @@ int AttitudeControl::Run()
 
         // Check if current move is complete
         double maxErrorComponent = error.cwiseAbs().maxCoeff();
-        double maxVelComponent   = angularVelocityVec.cwiseAbs().maxCoeff();
-        double maxComponent      = max(maxErrorComponent, maxVelComponent / 4);
+        double maxVelComponent = angularVelocityVec.cwiseAbs().maxCoeff();
+        double maxComponent = max(maxErrorComponent, maxVelComponent / 4);
         if (motionSolver_.isDone(time) && maxComponent <= 8.7e-3) // 8.7e-3 is 0.5 degreees
         {
             // Check if there are more moves in the queue
