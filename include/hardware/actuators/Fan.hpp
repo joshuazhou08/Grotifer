@@ -16,6 +16,7 @@ public:
     void applyTorque(const Eigen::Vector3d& torqueCmd, double deltaT) override;
     Eigen::Vector3d getTorque() const override { return Eigen::Vector3d::Zero(); } // implement later
     double getSpeed() const override { return static_cast<double>(lastTarget_); } // returns last commanded fan speed
+    double getMotPos() const override { return 0.0; }
 
 
 private:

@@ -210,7 +210,7 @@ uint16_t Fan::torqueToFanSpeed(double torque) const
 void Fan::applyTorque(const Vector3d &torqueCmd, double deltaT)
 {
     // deltaT not needed for fans
-    double torque = torqueCmd(static_cast<int>(axis_));
+    double torque = torqueCmd(axisIndex());
     uint16_t target = torqueToFanSpeed(torque);
     moveFan(target);
 }

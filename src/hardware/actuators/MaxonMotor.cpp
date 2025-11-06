@@ -1,5 +1,5 @@
 #include "hardware/actuators/MaxonMotor.hpp"
-#include <Definitions.h>
+#include "hardware/actuators/Definitions.h"
 #include <iostream>
 #include <cmath>
 #include <cstring>
@@ -94,6 +94,7 @@ void* MaxonMotor::openMotorBySerialNumber(uint32_t targetSerialNo) {
     return nullptr;
 }
 
+// X, Y, Z Maxon Motor ctor
 MaxonMotor::MaxonMotor(MaxonParameters& params, Axis axis)
     : Actuator(axis),
       serialNo_(params.serialNo),
@@ -101,7 +102,8 @@ MaxonMotor::MaxonMotor(MaxonParameters& params, Axis axis)
       torqueConstant_(params.KT),
       momentOfInertia_(params.momentOfInertia),
       maxVelocity_(params.maxVelocity),
-      handle_(nullptr)
+      handle_(nullptr),
+      params(params)
 {
     // Open the motor by scanning USB ports for matching serial number
     handle_ = openMotorBySerialNumber(params.serialNo);
@@ -116,6 +118,32 @@ MaxonMotor::MaxonMotor(MaxonParameters& params, Axis axis)
         cerr << "[MaxonMotor] Failed to open motor " << motorName_ 
              << " with serial number " << serialNo_ << endl;
         isOpen_ = false;
+    }
+}
+
+// L & R Torp Arm Maxon Motors ctor
+MaxonMotor::MaxonMotor(MaxonParameters& params, Side side)
+    : Actuator(side),
+      serialNo_(params.serialNo),
+      motorName_(params.motorName),
+      torqueConstant_(params.KT),
+      momentOfInertia_(params.momentOfInertia),
+      maxVelocity_(params.maxVelocity),
+      handle_(nullptr),
+      params(params)
+{
+    handle_ = openMotorBySerialNumber(params.serialNo);
+
+    if (handle_!= nullptr) {
+        // Initialize motor settings (gains, encoder, velocity mode, etc.)
+        initSettings(params);
+        isOpen_ = true;
+        cout << "[MaxonMotor] " << motorName_ << "initalized on side " 
+             << static_cast<int>(side_) << endl;
+    } else {
+        cerr << "[MaxonMotor] Failed to open motor " << motorName_
+             << " with serial number " << serialNo_ << endl;
+             isOpen_ = false;
     }
 }
 
@@ -285,3 +313,31 @@ bool MaxonMotor::setVelocityCommand(int velocityRPM) {
     return true;
 }
 
+// Function to set the torp Maxon Motor speeds
+bool MaxonMotor:: setVelocity(int velocityRPM) {
+
+    return setVelocityCommand(velocityRPM);
+
+}
+
+double MaxonMotor::getPosition() const { // Function to get the position of the motor
+
+    if (!isOpen_) return 0.0;
+
+    int position = 0;
+
+    if (!VCS_GetPositionIs(handle_, nodeID_, &position, const_cast<unsigned int*>(&errorCode_))) {
+
+        return 0.0;
+    }
+    return (double)position * (360.0 / (4.0 * params.NUM_OF_PULSE_PER_REV));
+
+}
+
+// Halt motion of the motor
+void MaxonMotor::haltMotion()
+{
+    if (!VCS_HaltVelocityMovement(handle_, nodeID_, &errorCode_)) {
+        cerr << "[MaxonMotor] Failed to halt motor motion." << endl;
+    }
+}
