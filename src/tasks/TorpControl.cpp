@@ -114,7 +114,6 @@ int TorpControl::Run()
                     tA = GetTimeNow(); // start time for the acceleration phase
                     tB = tA + abs(homingVel / maxAcc) - deltaTaskTime; // end time of acceleration phase -- t = v/a
                     refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
-                    t0 = GetTimeNow();
 
                     cout << "[TorpControl] 2. Finding home index state, locating index position." << endl;
 
@@ -332,8 +331,9 @@ int TorpControl::Run()
                             nextState = DEPLOYING_MASS;
                             tEndDeployRetract = time + tDeployRetract;
                             torpStepperActuator_.energizeSide(side_);
-
-                        } else if (deployDoneFlag && !retractStartFlag) { 
+                        
+                        // Signal to spin down from task coordinator
+                        } else if (deployDoneFlag && startSpinningDownFlag) { 
 
                             retractStartFlag = true;
                         
@@ -381,7 +381,6 @@ int TorpControl::Run()
                     velProfVal = oprVelMag;
                     accProfVal = 0;
                     jerkProfVal = 0;
-
                     if (time >= tEndDeployRetract) { // Deployment window has finished
 
                         nextState = CRUISING;
@@ -447,8 +446,6 @@ int TorpControl::Run()
                     
                     torpMaxonActuator_.haltMotion(side_);
                     cout << "[Torp Control] Torp actuation phase completed. Torp arms stopped." << endl;
-
-                    torpDoneFlag = true;
 
                     break;
 

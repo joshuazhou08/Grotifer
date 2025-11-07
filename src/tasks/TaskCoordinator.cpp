@@ -1,6 +1,8 @@
 #include "tasks/TaskCoordinator.hpp"
+#include "core/utils/TimeUtils.hpp"
 
 using namespace std;
+using namespace TimeUtils;
 
 TaskCoordinator::TaskCoordinator(AttitudeControl &ac,
                                  TorpControl &tc)

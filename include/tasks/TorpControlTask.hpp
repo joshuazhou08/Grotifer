@@ -63,13 +63,15 @@ public:
     // Setters
     inline void enable() { enabled = true; };
     
-    // TODO: Let external classes signal it to start spining down
+    // Task coordinator ends torp sequence after moves
     inline void spinDown() { 
-       // example: startSpinningDownFlag = true; 
+
+       startSpinningDownFlag = true;
+       
     };
 
     // Getters
-    inline bool doneSpinningUp() { return torpDoneFlag; };     // TODO: ensure this flag is set to true when the torps are done spinning up, not when they are entirely done
+    inline bool doneSpinningUp() { return torpCruisingFlag; }; 
     inline bool isEnabled() { return enabled; };
 private:
 
@@ -126,7 +128,6 @@ private:
 
     // PI timing variables
     double time,                   // Set at the beginning of every cycle, used for timing comparisons
-           t0,                     // ** ???????????????
            deltaT;                 // Current time - preTime, used in velocity integration
 
     // Synchronization timing variables
@@ -144,7 +145,8 @@ private:
          leftHomingFlag,           // Left torp has finished homing
          rightHomingFlag,          // Right torp arm has finished homing
          doneHomingFlag,           // Both torp arms have finished homing
-         torpDoneFlag;             // All torp functions are completed
+         torpCruisingFlag,         // Torp sequence has spun up to cruise and deployed masses -- out to task coordinator
+         startSpinningDownFlag;    // Moves have completed, torp retract masses and spin down -- in from task coordinator
 
     // == TorpMasterControl variables == //
     // Deployment/Retraction flags
@@ -176,7 +178,7 @@ private:
            T1,                     // Ramp-up and ramp-down time duration
            T2;                     // Constant acceleration time duration
 
-    bool enabled;                  // ***** Will be provided by the Task Coordinator eventually
+    bool enabled;                  // Flag to start torp sequence from task coordinator
     
     int movingAverageFilterSpan = 5;
     MovingAverage velMAFilter{movingAverageFilterSpan};

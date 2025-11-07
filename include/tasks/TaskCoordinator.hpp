@@ -16,4 +16,4 @@ private:
     // store by reference, the lifespan of these objects are handled by main
     AttitudeControl& ac_;
     TorpControl& tc_;
-}
+};
