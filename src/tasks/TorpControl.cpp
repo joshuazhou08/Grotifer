@@ -48,8 +48,10 @@ TorpControl::TorpControl(
     rightHomingFlag = false;
     doneHomingFlag = false;
     startPosLocFlag = false;
+    torpPrePos = 0.0;
+    
     // Torp Master Control variables
-    oprVelMag = TorpConfig::oprVel;
+    oprVelMag = getSignDir(flipSign) * TorpConfig::oprVel;
     tAccDec = TorpConfig::tAccDec;
     tCruise = TorpConfig::tCruise;
 
@@ -83,7 +85,6 @@ int TorpControl::Run()
 
             // update
             timeStart = GetTimeNow();
-            preTime = timeStart;
             state = nextState;
             stateName = nextStateName;
             time = GetTimeNow();
@@ -92,11 +93,6 @@ int TorpControl::Run()
             motVel = torpMaxonActuator_.getSpeed(side_);
             torpPos = getAngularPosDeg();
 
-
-            // Moving average filter applied to velocity calculation for noise reduction
-            torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
-            torpPrePos = torpPos; // position stored as pre-position for next cycle
-            
             // sets preTime on initial run
             if (firstRunFlag) {
 
@@ -106,6 +102,10 @@ int TorpControl::Run()
             }
 
             deltaT = GetTimeNow() - preTime; // fresh deltaT for going into the switch statement
+
+            // Moving average filter applied to velocity calculation for noise reduction
+            torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
+            torpPrePos = torpPos; // position stored as pre-position for next cycle
             
             switch(state)
             {
@@ -116,6 +116,7 @@ int TorpControl::Run()
 
                     cout << "[TorpControl] 1. Initialization state, setting timing variables." << endl;
 
+                    refPos = torpPos;
                     tA = GetTimeNow(); // start time for the acceleration phase
                     tB = tA + abs(homingVel / maxAcc) - deltaTaskTime; // end time of acceleration phase -- t = v/a
                     refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
@@ -123,7 +124,6 @@ int TorpControl::Run()
                     cout << "[TorpControl] 2. Finding home index state, locating index position." << endl;
 
                     break;
-                
                 // State function:
                 // 1. Retrieves motor positon and velocity from Maxon controllers, torp position from labjack encoder
                 // and calculates the torp velocity from torp position over time on every cycle.
@@ -281,8 +281,9 @@ int TorpControl::Run()
                     posProfVal = startPosAct;
                     velProfVal = 0.0;
                     accProfVal = 0.0;
-                    jerkProfVal = abs(maxAcc / T1); // Ramp-up acceleration rate of change profile
-
+                    refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
+                    jerkProfVal = refAcc / T1; // Ramp-up acceleration rate of change profile
+                    cout << "Starting to accelerate with jerk: " << jerkProfVal << endl;
                     nextState = ACCELERATING;
 
                     break;
@@ -292,13 +293,15 @@ int TorpControl::Run()
                 // Execute S-curve acceleration profile to reach operating velocity
                 case ACCELERATING:
 
-                    if (maxAcc >= maxAccAllowed) {
-                        maxAcc = maxAccAllowed; // Clamp acceleration to maximum allowed
+                    if (abs(refAcc) >= maxAccAllowed) {
+                        refAcc = getSignDir(flipSign) * maxAccAllowed; // Clamp acceleration to maximum allowed
                     }
 
                     // Acceleration is finished
                     if (time >= Tc) {
-
+                        cout << "[Torp Control] Done accelerating, going into cruising." << endl
+                             << "Ref vel: " << refVel << endl    
+                             << "Opr vel: " << oprVelMag << endl;
                         nextState = CRUISING;
                         readyToDeployFlag = true;
                         deployStartFlag = true;
@@ -318,14 +321,14 @@ int TorpControl::Run()
 
                         } else if (time > Tb) {
 
-                            jerkProfVal = -abs(maxAcc / T1); // Ramp-down acceleration rate of change profile
+                            jerkProfVal = -1 * refAcc / T1; // Ramp-down acceleration rate of change profile
                         }
                     }
 
                     break;
 
                 case CRUISING:
-
+                    
                     if (time >= Td) {
 
                         // Masses are deploying, not finished
@@ -355,7 +358,7 @@ int TorpControl::Run()
                             Ta = time + T1;
                             Tb = time + T1 + T2;
                             Tc = time + tAccDec;
-                            jerkProfVal = -abs(maxAcc / T1);
+                            jerkProfVal = -1 * refAcc / T1;
 
                         // Cruising between deployment and retraction
                         } else {
@@ -474,16 +477,14 @@ int TorpControl::Run()
                 } else {
 
                     // Homing
-                    refPos = refPos + refVel * (deltaT / 60.0) * (360.);
+                    refPos = refPos + refVel * (deltaT / 60.0) * (360.0);
                 }
             }
 
-
-            desVel = pi_->calculate(refPos, torpPos) / 360.0 + refVel;
+            double piSignal = pi_->calculate(refPos, torpPos);
+            desVel = piSignal / 360 + refVel;
             posErr = pi_->getError();
 
-            cout << "ref: " << refPos << "actual" << torpPos << endl;
-            cout << "error:" << posErr << endl;
             // Actuate torp Maxon Motors
             if (!torpMaxonActuator_.setVelocity(side_, roundingFunc(desVel * TorpConfig::gearRatio))) {
                 cout << "[Torp Control] Failed to set torp velocity" << endl;
@@ -495,8 +496,11 @@ int TorpControl::Run()
         }
 
     }
+    preTime = time;
+
     timeEnd = GetTimeNow();
     nextTaskTime += deltaTaskTime;
+    
     return 0;
 
 }

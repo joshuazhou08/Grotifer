@@ -92,7 +92,7 @@ MaxonParameters makeRightMotorParams() {
     MaxonParameters params;
     params.motorName = "rTorpMotor";
     params.serialNo = 0x40006029;
-    params.K_P = 59128;
+    params.K_P = 44366;
     params.K_I = 3488178;
     params.KFF_VEL = 888;
     params.KFF_ACC = 0;
@@ -103,7 +103,7 @@ MaxonParameters makeRightMotorParams() {
     params.NUM_OF_PULSE_PER_REV = 512;
     params.SENSOR_POLARITY = 0;
     params.homingVel = -1 * 0.643;
-    params.maxAcc = TorpConfig::accScaleFactor * 0.1;
+    params.maxAcc = TorpConfig::acc;
     params.offsetPos = 244.35 - 0.75;
     params.offsetPosLim = 1.5;
     params.startPosLim = 1.5;
@@ -115,7 +115,7 @@ MaxonParameters makeLeftMotorParams() {
     MaxonParameters params;
     params.motorName = "lTorpMotor";
     params.serialNo = 0x40011322;
-    params.K_P = 41985;
+    params.K_P = 31488;
     params.K_I = 2219421;
     params.KFF_VEL = 2058;
     params.KFF_ACC = 397;
@@ -126,7 +126,7 @@ MaxonParameters makeLeftMotorParams() {
     params.NUM_OF_PULSE_PER_REV = 512;
     params.SENSOR_POLARITY = 0;
     params.homingVel = 0.643;
-    params.maxAcc = TorpConfig::accScaleFactor * 0.1;
+    params.maxAcc = TorpConfig::acc;
     params.offsetPos = 51.75 - 3.25;
     params.offsetPosLim = 2.5;
     params.startPosLim = 2.0;
@@ -398,6 +398,7 @@ int main()
             TorpConfig::r_lLim,
             TorpConfig::r_kd)
     };
+    
     TorpControl rightTorp(
         torpMaxonActuator,
         torpStepperActuator,

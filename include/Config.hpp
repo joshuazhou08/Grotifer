@@ -95,22 +95,22 @@ struct TorpConfig
     static inline constexpr double gearRatio = 31.1;
 
     // Torp Master Control values
-    static inline constexpr double oprVel = 12; // Operational velocity (RPM)
-    static inline constexpr double accScaleFactor = 1.0; // For torp max acceleration, 1.0 for mounted weights
+    static inline constexpr double oprVel = 3; // Operational velocity (RPM)
+    static inline constexpr double acc = 0.3; // For torp max acceleration, 1.0 for mounted weights
     static inline constexpr double tAccDec = 60; // acc/dec time (s), 60 for mounted weights
     static inline constexpr double tCruise = 20; // cruise time (s)
     static inline constexpr double tDeployRetract = 65; 
     static inline constexpr double stepperSpeed = (200.0 / 60) * (1.034 / 0.04); // stepper motor speed (steps/10000s)
     
     // R & L Torp PI Control gains
-    static inline constexpr double l_kp = 10000;
-    static inline constexpr double l_ki = 8.5;
+    static inline constexpr double l_kp = 20;
+    static inline constexpr double l_ki = 18.5;
     static inline constexpr double l_kd = 0.0;
     static inline constexpr double l_hLim = 32.0;
     static inline constexpr double l_lLim = -32.0;
 
-    static inline constexpr double r_kp = 10000;
-    static inline constexpr double r_ki = 8.5;
+    static inline constexpr double r_kp = 20;
+    static inline constexpr double r_ki = 18.5;
     static inline constexpr double r_kd = 0.0;
     static inline constexpr double r_hLim = 32.0;
     static inline constexpr double r_lLim = -32.0;
