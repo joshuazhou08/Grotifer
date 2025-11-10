@@ -47,6 +47,8 @@ StepperMotor::StepperMotor(StepperParameters& params, StepperMot stepperMot)
 
     ExitSafeStart();
     Energize(); // Energize the motor
+    isOpen_ = true;
+    
 }
 
 StepperMotor::~StepperMotor()

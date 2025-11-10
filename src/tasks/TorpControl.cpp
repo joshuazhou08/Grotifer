@@ -43,6 +43,7 @@ TorpControl::TorpControl(
     leftHomingFlag = false;
     rightHomingFlag = false;
     doneHomingFlag = false;
+    torpPrePos = 0.0;
     
     // Torp Master Control variables
     oprVelMag = TorpConfig::oprVel;
@@ -87,10 +88,6 @@ int TorpControl::Run()
             motPos = torpMaxonActuator_.getMotPos(side_);
             motVel = torpMaxonActuator_.getSpeed(side_);
             torpPos = getAngularPosDeg();
-
-            // Moving average filter applied to velocity calculation for noise reduction
-            torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
-            torpPrePos = torpPos; // position stored as pre-position for next cycle
             
             // sets preTime on initial run
             if (firstRunFlag) {
@@ -101,6 +98,10 @@ int TorpControl::Run()
             }
 
             deltaT = GetTimeNow() - preTime; // fresh deltaT for going into the switch statement
+
+            // Moving average filter applied to velocity calculation for noise reduction
+            torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
+            torpPrePos = torpPos; // position stored as pre-position for next cycle
             
             switch(state)
             {
@@ -111,6 +112,7 @@ int TorpControl::Run()
 
                     cout << "[TorpControl] 1. Initialization state, setting timing variables." << endl;
 
+                    refPos = torpPos;
                     tA = GetTimeNow(); // start time for the acceleration phase
                     tB = tA + abs(homingVel / maxAcc) - deltaTaskTime; // end time of acceleration phase -- t = v/a
                     refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
@@ -472,11 +474,12 @@ int TorpControl::Run()
                 } else {
 
                     // Homing
-                    refPos = refPos + refVel * (deltaT / 60.0) * (360.);
+                    refPos = refPos + refVel * (deltaT / 60.0) * (360.0);
                 }
             }
 
             // Caculate desired velocity and retreive position error
+
             desVel = pi_->calculate(refPos, torpPos) / 360.0 + refVel;
             posErr = pi_->getError();
             
@@ -488,6 +491,7 @@ int TorpControl::Run()
     }
     timeEnd = GetTimeNow();
     nextTaskTime += deltaTaskTime;
+    
     return 0;
 
 }
@@ -497,7 +501,7 @@ int TorpControl::Run()
 
 int TorpControl::getSignDir(bool flipSignFlag) {
         
-int signResult = (!flipSignFlag) ? 1 : -1;
+    int signResult = (!flipSignFlag) ? 1 : -1;
         return signResult;
 
     }

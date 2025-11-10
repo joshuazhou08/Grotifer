@@ -397,6 +397,7 @@ int main()
             TorpConfig::r_lLim,
             TorpConfig::r_kd)
     };
+    
     TorpControl rightTorp(
         torpMaxonActuator,
         torpStepperActuator,

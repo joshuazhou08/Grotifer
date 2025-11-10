@@ -31,7 +31,6 @@ public:
     bool setVelocity(Side s, int velocityRPM);
 
     // Access individual actuators
-
     Actuator* getLActuator() { return actuators_[0]; }
     Actuator* getRActuator() { return actuators_[1]; }
 
