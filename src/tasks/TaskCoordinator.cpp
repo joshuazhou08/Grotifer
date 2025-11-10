@@ -28,16 +28,19 @@ int TaskCoordinator::Run()
     if (ac_.findSunDone() && !tc_.isEnabled())
     {
         tc_.enable();
+        cout << "[TaskCoordinator] Find sun finished, enabling torps" << endl;
     }
     // Check if torps are done spinning up. if it is, enable moving
     if (tc_.doneSpinningUp() && !ac_.movesEnabled())
     {
         ac_.enableMove();
+        cout << "[TaskCoordinator] Torps done spinning up, enabling moving" << endl;
     }
     // Once attitude control is done moving, we can spin down.
     if (ac_.movesDone())
     {
         tc_.spinDown();
+        cout << "[TaskCoordinator] Done moving, spinning down torps" << endl;
     }
 
     nextTaskTime += deltaTaskTime;

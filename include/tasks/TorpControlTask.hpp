@@ -142,11 +142,12 @@ private:
     // Flags for transitions
     bool indexFlag,                // Flag to identify if torp has reached index position
          startPosLocFlag,          // Used when torps are approaching starting position
-         leftHomingFlag,           // Left torp has finished homing
-         rightHomingFlag,          // Right torp arm has finished homing
          doneHomingFlag,           // Both torp arms have finished homing
          torpCruisingFlag,         // Torp sequence has spun up to cruise and deployed masses -- out to task coordinator
          startSpinningDownFlag;    // Moves have completed, torp retract masses and spin down -- in from task coordinator
+
+    static bool leftHomingFlag,           // Left torp has finished homing
+                rightHomingFlag;          // Right torp arm has finished homing
 
     // == TorpMasterControl variables == //
     // Deployment/Retraction flags
@@ -178,7 +179,7 @@ private:
            T1,                     // Ramp-up and ramp-down time duration
            T2;                     // Constant acceleration time duration
 
-    bool enabled;                  // Flag to start torp sequence from task coordinator
+    static bool enabled;           // Flag to start torp sequence from task coordinator
     
     int movingAverageFilterSpan = 5;
     MovingAverage velMAFilter{movingAverageFilterSpan};

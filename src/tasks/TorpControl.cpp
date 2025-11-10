@@ -10,6 +10,10 @@
 
 using namespace std;
 using namespace TimeUtils;
+// static initialization
+bool TorpControl::leftHomingFlag = false;
+bool TorpControl::rightHomingFlag = false;
+bool TorpControl::enabled = false;
 
 TorpControl::TorpControl(
                 TorpMaxonActuator& torpMaxonActuator,
@@ -43,7 +47,7 @@ TorpControl::TorpControl(
     leftHomingFlag = false;
     rightHomingFlag = false;
     doneHomingFlag = false;
-    
+    startPosLocFlag = false;
     // Torp Master Control variables
     oprVelMag = TorpConfig::oprVel;
     tAccDec = TorpConfig::tAccDec;
@@ -87,6 +91,7 @@ int TorpControl::Run()
             motPos = torpMaxonActuator_.getMotPos(side_);
             motVel = torpMaxonActuator_.getSpeed(side_);
             torpPos = getAngularPosDeg();
+
 
             // Moving average filter applied to velocity calculation for noise reduction
             torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
@@ -139,7 +144,6 @@ int TorpControl::Run()
                         refVel = refVel + refAcc * deltaT;
 
                     }
-
                     // Home position/index detection, latching, flag setting
                     if (getIndexFlag()) {
                         
@@ -212,7 +216,6 @@ int TorpControl::Run()
                     
                     // After deceleration window, commanded velocity = 0
                     if (time > tB) {
-
                         refVel = 0;
 
                     } else {
@@ -227,7 +230,7 @@ int TorpControl::Run()
                     // Start location positioning:
                     // Outer condition: sets startPosLocFlag when position within 125% of limit or small velocity
                     if (abs(torpPos - startPosRef) <= 1.25 * startPosLim || abs(refVel) <=0.035) {
-
+                        cout << "[Torp Control] Torp starting position found" << endl;
                         startPosLocFlag = true;
 
                         // Inner condition: sets startPosAct when position error inside limit, commanded 
@@ -464,7 +467,6 @@ int TorpControl::Run()
 
             } else { // Homing/Start logic
                 if (startPosLocFlag) {
-
                     // At start position
                     refVel = 0.0;
                     refPos = startPosRef;
@@ -476,13 +478,20 @@ int TorpControl::Run()
                 }
             }
 
-            // Caculate desired velocity and retreive position error
+
             desVel = pi_->calculate(refPos, torpPos) / 360.0 + refVel;
             posErr = pi_->getError();
-            
-            // Actuate torp Maxon Motors
-            torpMaxonActuator_.setVelocity(side_, roundingFunc(desVel * TorpConfig::gearRatio));
 
+            cout << "ref: " << refPos << "actual" << torpPos << endl;
+            cout << "error:" << posErr << endl;
+            // Actuate torp Maxon Motors
+            if (!torpMaxonActuator_.setVelocity(side_, roundingFunc(desVel * TorpConfig::gearRatio))) {
+                cout << "[Torp Control] Failed to set torp velocity" << endl;
+            }
+        }
+
+        else {
+            torpCruisingFlag = true;  // Notify its done
         }
 
     }
@@ -496,9 +505,9 @@ int TorpControl::Run()
 // Helper functions:
 
 int TorpControl::getSignDir(bool flipSignFlag) {
-        
-int signResult = (!flipSignFlag) ? 1 : -1;
-        return signResult;
+         
+    int signResult = (!flipSignFlag) ? 1 : -1;
+    return signResult;
 
     }
 

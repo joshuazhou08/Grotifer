@@ -47,6 +47,7 @@ StepperMotor::StepperMotor(StepperParameters& params, StepperMot stepperMot)
 
     ExitSafeStart();
     Energize(); // Energize the motor
+    isOpen_ = true;
 }
 
 StepperMotor::~StepperMotor()
@@ -54,6 +55,7 @@ StepperMotor::~StepperMotor()
     if (fd_ >= 0) 
     DeEnergize(); // De-energize the motor
     close(fd_); // Close serial port
+    cout << "[Stepper Motor] Motor closed" << endl;
 }
 
 // Function to set up serial port

@@ -1,6 +1,7 @@
 ﻿#include "core/BaseTask.hpp"
 #include "tasks/AttitudeControlTask.hpp"
 #include "tasks/TorpControlTask.hpp"
+#include "tasks/TaskCoordinator.hpp"
 #include "Config.hpp"
 #include "hardware/actuators/MaxonMotor.hpp"
 #include "hardware/actuators/Fan.hpp"
@@ -101,8 +102,8 @@ MaxonParameters makeRightMotorParams() {
     params.KT = 24.6 * 1.0e-3;
     params.NUM_OF_PULSE_PER_REV = 512;
     params.SENSOR_POLARITY = 0;
-    params.homingVel = 0.643;
-    params.maxAcc = TorpConfig::accScaleFactor * 0.321;
+    params.homingVel = -1 * 0.643;
+    params.maxAcc = TorpConfig::accScaleFactor * 0.1;
     params.offsetPos = 244.35 - 0.75;
     params.offsetPosLim = 1.5;
     params.startPosLim = 1.5;
@@ -125,7 +126,7 @@ MaxonParameters makeLeftMotorParams() {
     params.NUM_OF_PULSE_PER_REV = 512;
     params.SENSOR_POLARITY = 0;
     params.homingVel = 0.643;
-    params.maxAcc = TorpConfig::accScaleFactor * 0.321;
+    params.maxAcc = TorpConfig::accScaleFactor * 0.1;
     params.offsetPos = 51.75 - 3.25;
     params.offsetPosLim = 2.5;
     params.startPosLim = 2.0;
@@ -415,14 +416,21 @@ int main()
         Side::L
     );
 
-    // Initialize Task List
-    constexpr int NUM_TASKS = 1;
+    TaskCoordinator taskCoordinator(
+        attitudeControl,
+        rightTorp // only need one of the torp tasks, they are in sync. This may cause errors but they are negligible
+    );
 
+    // Initialize Task List
+    constexpr int NUM_TASKS = 4;
     BaseTask *taskTable[NUM_TASKS] = {
-        &attitudeControl};
+        &attitudeControl,
+        &rightTorp,
+        &leftTorp,
+        &taskCoordinator};
 
     double startTime = GetTimeNow();
-    double T_PROGRAM = 60;
+    double T_PROGRAM = 300;
     int i = 0;
 
     setNonBlockingInput(true); // Enable non-blocking input for smooth kill signal

@@ -70,7 +70,7 @@ struct AttitudeConfig
     // --- Arbitrary Rotation Configuration --- //
 
     // Enable automatic find sun operation after detumbling
-    static inline constexpr bool enableFindSun = true;
+    static inline constexpr bool enableFindSun = false;
 
     // Enable arbitrary rotations (if false, no additional rotations after find sun)
     static inline constexpr bool enableArbitraryRotations = true;
@@ -91,7 +91,7 @@ struct AttitudeConfig
 struct TorpConfig
 {
     
-    static inline constexpr double deltaTaskTime = 50e-3;
+    static inline constexpr double deltaTaskTime = 150e-3;
     static inline constexpr double gearRatio = 31.1;
 
     // Torp Master Control values
@@ -103,13 +103,13 @@ struct TorpConfig
     static inline constexpr double stepperSpeed = (200.0 / 60) * (1.034 / 0.04); // stepper motor speed (steps/10000s)
     
     // R & L Torp PI Control gains
-    static inline constexpr double l_kp = 10;
+    static inline constexpr double l_kp = 10000;
     static inline constexpr double l_ki = 8.5;
     static inline constexpr double l_kd = 0.0;
     static inline constexpr double l_hLim = 32.0;
     static inline constexpr double l_lLim = -32.0;
 
-    static inline constexpr double r_kp = 10;
+    static inline constexpr double r_kp = 10000;
     static inline constexpr double r_ki = 8.5;
     static inline constexpr double r_kd = 0.0;
     static inline constexpr double r_hLim = 32.0;

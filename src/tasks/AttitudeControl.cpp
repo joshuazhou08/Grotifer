@@ -195,9 +195,15 @@ int AttitudeControl::Run()
                 findSunDone_ = true;
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
-
+            
+            // If find sun not done, transition to moving regardless
+            if (!findSunDone_) {
+                initializeMovingProfile(currentOrientation);
+                nextState = MOVING;
+                nextStateName = "Moving";
+            }
             // Transition to MOVING if there are rotations in the queue and enabled
-            if (!rotationQueue.empty() && movesEnabled_)
+            else if (!rotationQueue.empty() && movesEnabled_)
             {
                 initializeMovingProfile(currentOrientation);
                 nextState = MOVING;
@@ -278,7 +284,7 @@ int AttitudeControl::Run()
         if (motionSolver_.isDone(time) && maxComponent <= 8.7e-3) // 8.7e-3 is 0.5 degreees
         {
             // Check if there are more moves in the queue
-            if (!rotationQueue.empty())
+            if (!rotationQueue.empty() && movesEnabled_)
             {
                 cout << "[AttitudeControl] Current move done! Preparing next move from queue" << endl;
                 motionSolver_.reset();
@@ -288,10 +294,11 @@ int AttitudeControl::Run()
             }
             else
             {
+                findSunDone_ = true; // technically only needs to be set once but this works as well
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
-                cout << "[AttitudeControl] All moves completed! Holding final position" << endl;
+                cout << "[AttitudeControl] Holding position" << endl;
             }
         }
         else
