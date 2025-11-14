@@ -1,45 +1,40 @@
 ﻿cmake_minimum_required(VERSION 3.14)
 project(GrotiferCMake LANGUAGES CXX C)
 
-# === C++ Standard ===
+# ============================================================
+# C++ Standard
+# ============================================================
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# === Base Source Layout ===
-file(GLOB_RECURSE SRC_MAIN     "${CMAKE_SOURCE_DIR}/src/*.cpp")
-file(GLOB_RECURSE SRC_TASKS    "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp")
-file(GLOB_RECURSE SRC_CORE  "${CMAKE_SOURCE_DIR}/src/core/*.cpp")
-file(GLOB_RECURSE SRC_HARDWARE "${CMAKE_SOURCE_DIR}/src/hardware/*.cpp")
-
-set(SOURCES
-    ${SRC_MAIN}
-    ${SRC_TASKS}
-    ${SRC_CORE}
-    ${SRC_HARDWARE}
+# ============================================================
+# SHARED LIBRARY SOURCES (all production code)
+# ============================================================
+file(GLOB_RECURSE LIB_SRC
+    "${CMAKE_SOURCE_DIR}/src/core/*.cpp"
+    "${CMAKE_SOURCE_DIR}/src/hardware/*.cpp"
+    "${CMAKE_SOURCE_DIR}/src/tasks/*.cpp"
 )
 
-# === Executable Target ===
-add_executable(mainExe ${SOURCES})
+# Remove test files from the library
+file(GLOB_RECURSE TEST_SRC "${CMAKE_SOURCE_DIR}/src/tests/*.cpp")
+list(REMOVE_ITEM LIB_SRC ${TEST_SRC})
 
-# === Include Directories ===
-# Your headers live in include/, vendor headers in MasterLibrary/GrotiferHardware
-set(MASTER_LIB_DIR "${CMAKE_SOURCE_DIR}/MasterLibrary")
+# Build static library
+add_library(grotifer_core STATIC ${LIB_SRC})
 
-target_include_directories(mainExe
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-        
+target_include_directories(grotifer_core PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
 )
 
-# === External Dependencies ===
+# ============================================================
+# External Libraries
+# ============================================================
 find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
 
-# === System-installed Hardware Libraries ===
-# These .so files should be installed on the system (e.g. /usr/local/lib)
 list(APPEND CMAKE_LIBRARY_PATH
     /usr/lib/x86_64-linux-gnu
-    /usr/lib/arm-linux-gnueabihf
     /usr/lib/aarch64-linux-gnu
 )
 
@@ -47,39 +42,44 @@ find_library(LIB_EPOSCMD NAMES EposCmd REQUIRED)
 find_library(LIB_LABJACK NAMES labjackusb REQUIRED)
 find_library(LIB_FTD2XX  NAMES ftd2xx REQUIRED)
 find_library(LIB_MODBUS  NAMES modbus REQUIRED)
-# === Sanity Checks ===
-if (NOT LIB_EPOSCMD)
-    message(FATAL_ERROR "libEposCmd.so not found. Please install the Maxon EPOS SDK.")
-endif()
 
-if (NOT LIB_LABJACK)
-    message(FATAL_ERROR "liblabjackusb.so not found. Please install the LabJack USB SDK.")
-endif()
-
-if (NOT LIB_FTD2XX)
-    message(FATAL_ERROR "libftd2xx.so not found. Please install the FTDI D2XX SDK.")
-endif()
-
-if (NOT LIB_MODBUS)
-    message(FATAL_ERROR "libmodbus.so not found. Try: sudo apt install libmodbus-dev")
-endif()
-
-# === Link All Required Libraries ===
-target_link_libraries(mainExe PRIVATE
+target_link_libraries(grotifer_core PUBLIC
     ${LIB_EPOSCMD}
     ${LIB_LABJACK}
     ${LIB_FTD2XX}
     ${LIB_MODBUS}
     Threads::Threads
     Eigen3::Eigen
+    labjack_u6
     stdc++fs
 )
 
-# === External Libraries ===
-add_subdirectory(external/labjack)
-target_link_libraries(mainExe PRIVATE labjack_u6)
+# ============================================================
+# MAIN EXECUTABLE
+# ============================================================
+file(GLOB_RECURSE MAIN_SRC "${CMAKE_SOURCE_DIR}/src/main.cpp")
 
-# === Architecture Printout (Optional) ===
+add_executable(mainExe ${MAIN_SRC})
+target_link_libraries(mainExe PRIVATE grotifer_core)
+
+# ============================================================
+# STEPPER TEST EXECUTABLE (only test + shared library)
+# ============================================================
+file(GLOB_RECURSE STEPPER_TEST_SRC
+    "${CMAKE_SOURCE_DIR}/src/tests/*.cpp"
+)
+
+add_executable(stepperTest ${STEPPER_TEST_SRC})
+target_link_libraries(stepperTest PRIVATE grotifer_core)
+
+# ============================================================
+# External LabJack Library
+# ============================================================
+add_subdirectory(external/labjack)
+
+# ============================================================
+# Architecture Printout
+# ============================================================
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "arm" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     set(HW_ARCH "Arm")
 else()
@@ -87,8 +87,15 @@ else()
 endif()
 message(STATUS "Building for architecture: ${HW_ARCH}")
 
-# === RPATH Settings (so you don't need LD_LIBRARY_PATH manually) ===
+# ============================================================
+# RPATH
+# ============================================================
 set_target_properties(mainExe PROPERTIES
+    BUILD_WITH_INSTALL_RPATH ON
+    INSTALL_RPATH "/usr/local/lib;/usr/lib"
+)
+
+set_target_properties(stepperTest PROPERTIES
     BUILD_WITH_INSTALL_RPATH ON
     INSTALL_RPATH "/usr/local/lib;/usr/lib"
 )
