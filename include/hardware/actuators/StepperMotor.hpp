@@ -34,6 +34,14 @@ public:
 
     void runToPosition(int32_t position);
 
+    uint16_t GetErrorStatusIs(); 
+    int32_t GetCurrentPositionIs();
+    void PrintBasicStatus();
+
+    std::string name;
+
+
+
 protected:
 
     StepperMot stepperMot_;
@@ -96,12 +104,14 @@ private:
     // Retrieves errors for GetErrorOccuredIs();
     int tic_get_variable(uint8_t offset, uint8_t *buffer, uint8_t length);
 
-    // Function to set target position
+    // Function to set target position 
     void setTargetPosition(int32_t position);
-
-    // Function to run motors to target position
-    void runToTargetPosition(int32_t position);
-
+ 
     // Get error returned from other setting/clearing functions
     uint32_t GetErrorOccuredIs();
+
+    void SetMaxAccel(uint32_t accel);
+    void SetMaxDecel(uint32_t decel);
+
+
 };

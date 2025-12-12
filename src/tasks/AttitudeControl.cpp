@@ -196,7 +196,7 @@ int AttitudeControl::Run()
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
             
-            // If find sun not done, transition to moving regardless
+            // If find sun not done, transition findSunDoneto moving regardless
             if (!findSunDone_) {
                 initializeMovingProfile(currentOrientation);
                 nextState = MOVING;
@@ -330,10 +330,10 @@ int AttitudeControl::Run()
 
 void AttitudeControl::applyTorque(const Vector3d &torque, double deltaT)
 {
-    // Apply sign correction for Y and Z axes (hardware mounting orientation)
+    // Apply sign correction 
     Vector3d correctedTorque = torque;
-    correctedTorque(1) = -torque(1); // Y axis needs to be flipped
-    correctedTorque(2) = -torque(2); // Z axis needs to be flipped
+    correctedTorque(1) = torque(1); 
+    correctedTorque(2) = -torque(2); 
 
     threeAxisActuator_.applyTorque(correctedTorque, deltaT);
 }

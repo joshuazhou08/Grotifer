@@ -1,5 +1,6 @@
 #include "hardware/actuators/StepperMotor.hpp"
 #include "hardware/actuators/TorpStepperActuator.hpp"
+#include <iostream>
 
 TorpStepperActuator::TorpStepperActuator(StepperMotor& L1,
                                          StepperMotor& L2,
@@ -51,6 +52,8 @@ void TorpStepperActuator::DeEnergizeSide(Side s) {
 void TorpStepperActuator::runToPositionSide(Side s, int32_t position) {
 
     auto pair = stepperPairFor(s);
-    for (auto m : pair) get(m)->runToPosition(position);
+    for (auto m : pair) {
+        get(m)->runToPosition(position);
+    }
 
 }

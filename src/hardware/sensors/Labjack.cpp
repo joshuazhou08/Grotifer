@@ -1,5 +1,5 @@
 #include "hardware/sensors/Labjack.hpp"
-#include "../../external/labjack/u6.h"
+#include "u6.h"
 #include <iostream>
 #include <cstdint>
 

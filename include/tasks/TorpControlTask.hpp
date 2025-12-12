@@ -71,7 +71,7 @@ public:
     };
 
     // Getters
-    inline bool doneSpinningUp() { return torpCruisingFlag; }; 
+    inline bool doneSpinningUp() { return deployDoneFlag; }; 
     inline bool isEnabled() { return enabled; };
 private:
 
@@ -143,7 +143,6 @@ private:
     bool indexFlag,                // Flag to identify if torp has reached index position
          startPosLocFlag,          // Used when torps are approaching starting position
          doneHomingFlag,           // Both torp arms have finished homing
-         torpCruisingFlag,         // Torp sequence has spun up to cruise and deployed masses -- out to task coordinator
          startSpinningDownFlag;    // Moves have completed, torp retract masses and spin down -- in from task coordinator
 
     static bool leftHomingFlag,           // Left torp has finished homing
@@ -151,12 +150,14 @@ private:
 
     // == TorpMasterControl variables == //
     // Deployment/Retraction flags
-    bool deployStartFlag,          // Cruising started, masses have started to deploy
-         retractStartFlag,         // Cruising ended, masses have started to retract
-         deployDoneFlag,           // Used when masses finish deploying
-         retractDoneFlag,          // Used when masses finish retracting
-         readyToDeployFlag,        // Used when acceleration has completed, masses ready to deploy
-         firstRunFlag = true;      // Used on first cycle to set initial preTime
+    bool deployStartFlag,           // Cruising started, masses have started to deploy
+         retractStartFlag,          // Cruising ended, masses have started to retract
+         deployDoneFlag,            // Used when masses finish deploying
+         retractDoneFlag,           // Used when masses finish retracting
+         readyToDeployFlag,         // Used when acceleration has completed, masses ready to deploy
+         firstRunFlag       = true, // Used on first cycle to set initial preTime
+         deployCommandSent  = false,// This command to the stepper is only sent once
+         retractCommandSent = false;// This command to the stepper is only sent once
 
     // Acceleration, deployment, cruising variables
     double oprVelMag,              // Operating velocity during deployement (RPM)

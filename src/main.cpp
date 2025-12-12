@@ -3,6 +3,7 @@
 #include "tasks/TorpControlTask.hpp"
 #include "tasks/TaskCoordinator.hpp"
 #include "Config.hpp"
+#include "Factory.hpp"
 #include "hardware/actuators/MaxonMotor.hpp"
 #include "hardware/actuators/Fan.hpp"
 #include "hardware/actuators/StepperMotor.hpp"
@@ -24,160 +25,9 @@ using namespace std;
 using namespace TimeUtils;
 
 #define X_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464559-if01"
+#define Y_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00473950-if01"
 #define Z_FAN_SERIAL_PORT "/dev/serial/by-id/usb-Pololu_Corporation_Pololu_Jrk_G2_21v3_00464472-if01"
 #define SUNSENSOR_SERIAL_PORT "/dev/digital_sun_sensor"
-
-// X Momentum Wheel parameter configuration
-MaxonParameters makeXMotorParams() {
-    MaxonParameters params;
-    params.motorName = "xMomMotor";
-    params.serialNo = 0x37058243;
-    params.K_P = 259266;
-    params.K_I = 2450065;
-    params.KFF_VEL = 5306;
-    params.KFF_ACC = 6859;
-    params.K_TUNING = 1;
-    params.KP_CURR = 2000035;
-    params.KI_CURR = 3362724;
-    params.KT = 24.6e-3;
-    params.NUM_OF_PULSE_PER_REV = 512;
-    params.SENSOR_POLARITY = 0;
-    params.momentOfInertia = 3.6383e-5; // [kg*m^2]
-    params.maxVelocity = 7500;          // [rpm]
-    return params;
-}
-
-// Y Momentum Wheel parameter configuration
-MaxonParameters makeYMotorParams() {
-    MaxonParameters params;
-    params.motorName = "yMomMotor";
-    params.serialNo = 0x37058261;
-    params.K_P = 260961;
-    params.K_I = 2466086;
-    params.KFF_VEL = 4699;
-    params.KFF_ACC = 6904;
-    params.K_TUNING = 1;
-    params.KP_CURR = 1822756;
-    params.KI_CURR = 2513998;
-    params.KT = 24.6e-3;
-    params.NUM_OF_PULSE_PER_REV = 512;
-    params.SENSOR_POLARITY = 0;
-    params.momentOfInertia = 3.6383e-5; // [kg*m^2]
-    params.maxVelocity = 7500;          // [rpm]
-    return params;
-}
-
-// Z Momentum Wheel parameter configuration
-MaxonParameters makeZMotorParams() {
-    MaxonParameters params;
-    params.motorName = "zMomMotor";
-    params.serialNo = 0x37059351;
-    params.K_P = 266273;
-    params.K_I = 2516281;
-    params.KFF_VEL = 6600;
-    params.KFF_ACC = 7044;
-    params.K_TUNING = 1;
-    params.KP_CURR = 1789845;
-    params.KI_CURR = 2370753;
-    params.KT = 24.6e-3;
-    params.NUM_OF_PULSE_PER_REV = 512;
-    params.SENSOR_POLARITY = 0;
-    params.momentOfInertia = 3.6383e-5; // [kg*m^2]
-    params.maxVelocity = 7500;          // [rpm]
-    return params;
-}
-
-// Right Maxon Torp parameter configuration
-MaxonParameters makeRightMotorParams() {
-    MaxonParameters params;
-    params.motorName = "rTorpMotor";
-    params.serialNo = 0x40006029;
-    params.K_P = 44366;
-    params.K_I = 3488178;
-    params.KFF_VEL = 888;
-    params.KFF_ACC = 0;
-    params.K_TUNING = 1.14568;
-    params.KP_CURR = 1847321;
-    params.KI_CURR = 3129455;
-    params.KT = 24.6 * 1.0e-3;
-    params.NUM_OF_PULSE_PER_REV = 512;
-    params.SENSOR_POLARITY = 0;
-    params.homingVel = -1 * 0.643;
-    params.maxAcc = TorpConfig::acc;
-    params.offsetPos = 244.35 - 0.75;
-    params.offsetPosLim = 1.5;
-    params.startPosLim = 1.5;
-    return params;
-}
-
-// Left Maxon Torp parameter configuration
-MaxonParameters makeLeftMotorParams() {
-    MaxonParameters params;
-    params.motorName = "lTorpMotor";
-    params.serialNo = 0x40011322;
-    params.K_P = 31488;
-    params.K_I = 2219421;
-    params.KFF_VEL = 2058;
-    params.KFF_ACC = 397;
-    params.K_TUNING = 1.5013;
-    params.KP_CURR = 1171880;
-    params.KI_CURR = 3906250;
-    params.KT = 24.6 * 1.0e-3;
-    params.NUM_OF_PULSE_PER_REV = 512;
-    params.SENSOR_POLARITY = 0;
-    params.homingVel = 0.643;
-    params.maxAcc = TorpConfig::acc;
-    params.offsetPos = 51.75 - 3.25;
-    params.offsetPosLim = 2.5;
-    params.startPosLim = 2.0;
-    return params;
-}
-
-// Left Stepper Motor 1 & 2 configuration
-StepperParameters makeL1StepperParams() {
-    StepperParameters params;
-    params.devicePath = "/dev/left_boom_stepper_1";
-    params.baudrate = 9600;
-    params.stepMode = 0;
-    params.maxSpeed = TorpConfig::stepperSpeed;
-    params.startSpeed = TorpConfig::stepperSpeed;
-    params.maxCurr = 3500;
-    return params;
-}
-
-StepperParameters makeL2StepperParams() {
-    StepperParameters params;
-    params.devicePath = "/dev/left_boom_stepper_2";
-    params.baudrate = 9600;
-    params.stepMode = 0;
-    params.maxSpeed = TorpConfig::stepperSpeed;
-    params.startSpeed = TorpConfig::stepperSpeed;
-    params.maxCurr = 3500;
-    return params;
-}
-
-// Right Stepper Motor 1 & 2 configuration
-StepperParameters makeR1StepperParams() {
-    StepperParameters params;
-    params.devicePath = "/dev/right_boom_stepper_1";
-    params.baudrate = 9600;
-    params.stepMode = 0;
-    params.maxSpeed = TorpConfig::stepperSpeed;
-    params.startSpeed = TorpConfig::stepperSpeed;
-    params.maxCurr = 3500;
-    return params;
-}
-
-StepperParameters makeR2StepperParams() {
-    StepperParameters params;
-    params.devicePath = "/dev/right_boom_stepper_2";
-    params.baudrate = 9600;
-    params.stepMode = 0;
-    params.maxSpeed = TorpConfig::stepperSpeed;
-    params.startSpeed = TorpConfig::stepperSpeed;
-    params.maxCurr = 3500;
-    return params;
-}
 
 void setNonBlockingInput(bool enable)
 {
@@ -218,16 +68,13 @@ int main()
         return -1;
     }
     cout << "[Main] X Fan initialized" << endl;
-    
 
-    MaxonParameters yMotorParams = makeYMotorParams();
-    MaxonMotor yMotor(yMotorParams, Axis::Y);
-    
-    if (!yMotor.isOpen()) {
-        cerr << "[Main] Failed to initialize Y Momentum Wheel" << endl;
+
+    Fan yFan(Y_FAN_SERIAL_PORT, fanBaudRate, Axis::Y);
+    if (!yFan.isOpen()) {
+        cerr << "[Main] Failed to initialize Y Fan" << endl;
         return -1;
     }
-    cout << "[Main] Y Momentum Wheel initialized" << endl;
 
     Fan zFan(Z_FAN_SERIAL_PORT, fanBaudRate, Axis::Z);
     if (!zFan.isOpen()) {
@@ -293,8 +140,8 @@ int main()
 
 
     // Create three-axis actuator system
-    ThreeAxisActuator threeAxisActuator(xFan, yMotor, zFan);
-    cout << "[Main] ThreeAxisActuator created with X Fan, Y Wheel, Z Fan" << endl;
+    ThreeAxisActuator threeAxisActuator(xFan, yFan, zFan);
+    cout << "[Main] ThreeAxisActuator created with X Fan, Y Fan, Z Fan" << endl;
 
     // Create Maxon torp actuator system
     TorpMaxonActuator torpMaxonActuator(lMotor, rMotor);

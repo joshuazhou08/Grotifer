@@ -54,6 +54,7 @@ TorpControl::TorpControl(
     oprVelMag = getSignDir(flipSign) * TorpConfig::oprVel;
     tAccDec = TorpConfig::tAccDec;
     tCruise = TorpConfig::tCruise;
+    tDeployRetract = TorpConfig::tDeployRetract;
 
     maxAccAllowed = abs(2 * oprVelMag / tAccDec);
 
@@ -255,9 +256,15 @@ int TorpControl::Run()
 
                     // When both arms finished homing, transition state
                     if (rightHomingFlag && leftHomingFlag) {
-                        
-                                doneHomingFlag = true;
-                                nextState = WAITING_FOR_SYNC;
+                
+                        doneHomingFlag = true;
+                        // Initialize S-curve accumulators NOW so end-of-tick integration is safe
+                        posProfVal = startPosAct;
+                        velProfVal = 0.0;
+                        accProfVal = 0.0;
+                        jerkProfVal = 0.0; // will be set in WAITING_FOR_SYNC on the next tick
+
+                        nextState = WAITING_FOR_SYNC;
                     }
 
                     break;
@@ -271,7 +278,9 @@ int TorpControl::Run()
                         }
 
                     // S-Curve acceleration profile initialization
-                    T2 = abs(2 * oprVelMag / maxAcc) - tAccDec; // constant acceleration phase duration
+                    refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
+
+                    T2 = abs(2 * oprVelMag / refAcc) - tAccDec; // constant acceleration phase duration
                     T1 = 0.5 * (tAccDec - T2); // ramp-up & ramp-down time
 
                     Ta = time + T1; // Time at end of ramp-up, beginning of constant acceleration
@@ -281,9 +290,14 @@ int TorpControl::Run()
                     posProfVal = startPosAct;
                     velProfVal = 0.0;
                     accProfVal = 0.0;
-                    refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
                     jerkProfVal = refAcc / T1; // Ramp-up acceleration rate of change profile
-                    cout << "Starting to accelerate with jerk: " << jerkProfVal << endl;
+                    cout<< "[TorpControl] Starting to accelerate with jerk: " << jerkProfVal << endl
+                        << "Ta: " << Ta << endl
+                        << "Tb: " << Tb << endl
+                        << "Tc: " << Tc << endl;
+
+                         
+
                     nextState = ACCELERATING;
 
                     break;
@@ -292,10 +306,6 @@ int TorpControl::Run()
                 // State function: 
                 // Execute S-curve acceleration profile to reach operating velocity
                 case ACCELERATING:
-
-                    if (abs(refAcc) >= maxAccAllowed) {
-                        refAcc = getSignDir(flipSign) * maxAccAllowed; // Clamp acceleration to maximum allowed
-                    }
 
                     // Acceleration is finished
                     if (time >= Tc) {
@@ -323,7 +333,7 @@ int TorpControl::Run()
 
                             jerkProfVal = -1 * refAcc / T1; // Ramp-down acceleration rate of change profile
                         }
-                    }
+                    }   
 
                     break;
 
@@ -333,10 +343,8 @@ int TorpControl::Run()
 
                         // Masses are deploying, not finished
                         if (deployStartFlag && !deployDoneFlag) {
-
                             nextState = DEPLOYING_MASS;
                             tEndDeployRetract = time + tDeployRetract;
-                            torpStepperActuator_.energizeSide(side_);
                         
                         // Signal to spin down from task coordinator
                         } else if (deployDoneFlag && startSpinningDownFlag) { 
@@ -373,14 +381,14 @@ int TorpControl::Run()
                 
                 case DEPLOYING_MASS:
                     
-                    if (!deployDoneFlag) { // deployment not finished 
-
+                    if (!deployDoneFlag && !deployCommandSent) { // deployment not finished 
                         double distPerStep = 0.04; // linear distance per step (mm)
                         double lBoom = 200; // travel distance of each boom
                         int32_t deployTargetPos = (int32_t)(lBoom / distPerStep);
-
                         // Run steppers to desired position
                         torpStepperActuator_.runToPositionSide(side_, deployTargetPos);
+                        deployCommandSent = true;
+                        cout << "[Torp Control] Deploy command sent for masses" << endl;
                     }
 
                     // Continue to run the Maxons at cruising speed
@@ -398,7 +406,7 @@ int TorpControl::Run()
 
                 case RETRACTING_MASS:
 
-                    if (!retractDoneFlag) { // retraction not finished
+                    if (!retractDoneFlag && !retractCommandSent) { // retraction not finished
 
                         double distPerStep = 0.04;
                         double lBoom = 200;
@@ -406,6 +414,9 @@ int TorpControl::Run()
 
                         // Run steppers to desired position
                         torpStepperActuator_.runToPositionSide(side_, retractTargetPos);
+                        retractCommandSent = true;
+                        cout << "[Torp Control] Retract command sent for masses" << endl;
+
                         
                     }
 
@@ -481,18 +492,22 @@ int TorpControl::Run()
                 }
             }
 
+
             double piSignal = pi_->calculate(refPos, torpPos);
+            
+            // TODO Figure out why we are getting -nan for piSignal when refPos and torpPos are positive during the acclerating phase
             desVel = piSignal / 360 + refVel;
             posErr = pi_->getError();
-
+        
+            int signal = roundingFunc(desVel * TorpConfig::gearRatio);
             // Actuate torp Maxon Motors
-            if (!torpMaxonActuator_.setVelocity(side_, roundingFunc(desVel * TorpConfig::gearRatio))) {
+            if (!torpMaxonActuator_.setVelocity(side_, signal)) {
                 cout << "[Torp Control] Failed to set torp velocity" << endl;
             }
         }
 
         else {
-            torpCruisingFlag = true;  // Notify its done
+            deployDoneFlag = true;  // Notify its done
         }
 
     }

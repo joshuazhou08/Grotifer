@@ -14,6 +14,7 @@ StepperMotor::StepperMotor(StepperParameters& params, StepperMot stepperMot)
     : path_(params.devicePath),
       baudrate_(params.baudrate),
       stepMode_(params.stepMode),
+      name(params.devicePath),
       fd_( open(path_.c_str(), O_RDWR | O_NOCTTY | O_SYNC) )
 {
 
@@ -22,31 +23,32 @@ StepperMotor::StepperMotor(StepperParameters& params, StepperMot stepperMot)
         return;
     }
 
-    InitSetting(); // Set up serial port
+    cout << "[Stepper] open(" << path_ 
+          << ") -> fd=" << fd_ << "\n";
 
-    ExitSafeStart();
+
+    InitSetting(); // Set up serial port
     Reset(); // Reset the driver
 
-    ExitSafeStart();
     ResetCmdTimeout(); // Reset cmd timeout
 
-    ExitSafeStart();
     ClearDriverError(); // Clear all driver errors
 
-    ExitSafeStart();
     SetCurrentLimit(params.maxCurr); // Set current limit
 
-    ExitSafeStart();
     SetStepMode(params.stepMode); // Set step mode
 
-    ExitSafeStart();
     SetMaxSpeed(params.maxSpeed); // Set max speed
-
-    ExitSafeStart();
+ 
     SetStartSpeed(params.startSpeed); // Set starting speed
 
-    ExitSafeStart();
+    SetMaxAccel(50'000'000); 
+ 
+    SetMaxDecel(50'000'000);
+
     Energize(); // Energize the motor
+    ExitSafeStart();
+
     isOpen_ = true;
 }
 
@@ -96,16 +98,22 @@ void StepperMotor::InitSetting() {
         break;
     }
 
+    cfsetispeed(&serialConfiguration, cfgetospeed(&serialConfiguration));
     tcsetattr(fd_, TCSANOW, &serialConfiguration);
 }
 
 // Function to write to port
 int StepperMotor::write_port(uint8_t *buffer, size_t size) {
     if (fd_ < 0) return -1;
-    ssize_t result = write(fd_, buffer, size);
-    if (result != (ssize_t)size) {
-        cerr << "Failed to write to Stepper Motor Port" << endl;
-        return -1;
+
+    size_t written = 0;
+    while (written < size) {
+        ssize_t r = write(fd_, buffer + written, size - written);
+        if (r < 0) {
+            perror("write failed");
+            return -1;
+        }
+        written += r;
     }
     return 0;
 }
@@ -307,22 +315,19 @@ void StepperMotor::setTargetPosition(int32_t position)
     command[5] = value >> 24 & 0x7F;
     if (write_port(command, sizeof(command)) < 0)
     {
-        cout << "Failed to set target position" << endl;
-        ;
+        std::cerr << "write_port failed: " << strerror(errno) << std::endl;
     }
 }
 
 // Function to run motors to target position
-void StepperMotor::runToTargetPosition(int32_t position) {
-    ExitSafeStart();
+void StepperMotor::runToPosition(int32_t position) {
     setTargetPosition(position);
 }
 
 // Public functions for accessing private class functions
 void StepperMotor::energizeMotors() {
 
-        ExitSafeStart();
-        Energize();
+    Energize();
 }
 
 void StepperMotor::DeEnergizeMotors() {
@@ -331,9 +336,99 @@ void StepperMotor::DeEnergizeMotors() {
 
 }
 
-void StepperMotor::runToPosition(int32_t position) {
 
-    ExitSafeStart();
-    runToTargetPosition(position);
+// Logging
 
+// Error status (current, blocking)
+uint16_t StepperMotor::GetErrorStatusIs()
+{
+    uint16_t output = 0;
+    uint8_t buffer[2];
+    if (tic_get_variable(0x02, buffer, sizeof(buffer)) < 0)
+    {
+        std::cerr << "[Stepper] Failed to get error status\n";
+        output = 0;
+    }
+    else
+    {
+        output = buffer[0] + (uint16_t(buffer[1]) << 8);
+    }
+    return output;
+}
+
+// Current position (to see if the Tic is accepting your commands)
+int32_t StepperMotor::GetCurrentPositionIs()
+{
+    int32_t output = 0;
+    uint8_t buffer[4];
+    if (tic_get_variable(0x22, buffer, sizeof(buffer)) < 0)
+    {
+        std::cerr << "[Stepper] Failed to get current position\n";
+        output = 0;
+    }
+    else
+    {
+        uint32_t u =  uint32_t(buffer[0])
+                    | (uint32_t(buffer[1]) << 8)
+                    | (uint32_t(buffer[2]) << 16)
+                    | (uint32_t(buffer[3]) << 24);
+        output = int32_t(u);
+    }
+    return output;
+}
+
+
+
+void StepperMotor::PrintBasicStatus()
+{
+    uint8_t op;
+    uint8_t misc;
+    if (tic_get_variable(0x00, &op, 1) == 0 &&
+        tic_get_variable(0x01, &misc, 1) == 0)
+    {
+        std::cout << "[Stepper] op_state=" << int(op)
+                  << " (10 = normal, 2 = de-energized)\n";
+        std::cout << "[Stepper] misc_flags=" << int(misc)
+                  << " (bit0=energized=" << ((misc & 0x1) ? 1 : 0) << ")\n";
+    }
+}
+
+
+void StepperMotor::SetMaxAccel(uint32_t accel)
+{
+    uint8_t command[6];
+    command[0] = 0xE7;
+    command[1] = ((accel >> 7) & 1) |
+                 ((accel >> 14) & 2) |
+                 ((accel >> 21) & 4) |
+                 ((accel >> 28) & 8);
+    command[2] = accel >> 0  & 0x7F;
+    command[3] = accel >> 8  & 0x7F;
+    command[4] = accel >> 16 & 0x7F;
+    command[5] = accel >> 24 & 0x7F;
+
+    if (write_port(command, sizeof(command)) < 0)
+    {
+        std::cerr << "Failed to set max acceleration" << std::endl;
+    }
+}
+
+// Function to set max deceleration
+void StepperMotor::SetMaxDecel(uint32_t decel)
+{
+    uint8_t command[6];
+    command[0] = 0xE8;
+    command[1] = ((decel >> 7) & 1) |
+                 ((decel >> 14) & 2) |
+                 ((decel >> 21) & 4) |
+                 ((decel >> 28) & 8);
+    command[2] = decel >> 0  & 0x7F;
+    command[3] = decel >> 8  & 0x7F;
+    command[4] = decel >> 16 & 0x7F;
+    command[5] = decel >> 24 & 0x7F;
+
+    if (write_port(command, sizeof(command)) < 0)
+    {
+        std::cerr << "Failed to set max deceleration" << std::endl;
+    }
 }
