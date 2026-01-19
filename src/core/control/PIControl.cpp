@@ -19,42 +19,46 @@ PIControl::PIControl(double kp, double ki, double hLim, double lLim, double kd)
 {
 }
 
-// Main controller calculation
-double PIControl::calculate(double setpoint, double actualValue) {
-    // Update time and calculate delta
+double PIControl::calculate(double setpoint, double actualValue)
+{
     time_ = GetTimeNow();
     double deltaT = time_ - prevTime_;
     prevTime_ = time_;
 
-    // Calculate error
+    if (deltaT <= 0.0)
+        deltaT = 0.0; // or a small epsilon / nominal dt
+
     error_ = setpoint - actualValue;
 
-    // Calculate proportional part
-    double proportionalPart = kp_ * error_;
+    double p = kp_ * error_;
 
-    // Calculate integral part with anti-windup
-    // Only integrate if output is not saturated or error would reduce saturation
-    double tempOutput = proportionalPart + integralPart_;
-    if ((tempOutput > hLim_ && error_ > 0.0) || (tempOutput < lLim_ && error_ < 0.0)) {
-        // Output is saturated, don't integrate to prevent windup
-        // Keep integralPart_ unchanged
-    } else {
-        // Update integral
+    double d = 0.0;
+    if (kd_ > 0.0)
+    {
+        d = kd_ * (error_ - prevError_) / deltaT;
+    }
+
+    // 1) form a trial output using the *current* integrator
+    double u_trial = p + integralPart_ + d;
+
+    // 2) saturate it
+    double u_sat = std::clamp(u_trial, lLim_, hLim_);
+
+    // 3) anti-windup: if saturated, force integrator to be consistent
+    //    otherwise integrate normally
+    if (u_trial != u_sat)
+    {
+        // If you're saturated, "solve for" I so that u_sat = p + I + d
+        integralPart_ = u_sat - (p + d);
+    }
+    else
+    {
         integralPart_ += ki_ * error_ * deltaT;
     }
 
-    // Calculate derivative part (if kd is non-zero)
-    double derivativePart = 0.0;
-    if (kd_ > 0.0 && deltaT > 0.0) {
-        derivativePart = kd_ * (error_ - prevError_) / deltaT;
-    }
     prevError_ = error_;
 
-    // Calculate control signal (PID)
-    double controlSignal = proportionalPart + integralPart_ + derivativePart;
-
-    // Clamp output to limits
-    controlSignal = clamp(controlSignal, lLim_, hLim_);
-
-    return controlSignal;
+    // final output
+    double u = p + integralPart_ + d;
+    return std::clamp(u, lLim_, hLim_);
 }
