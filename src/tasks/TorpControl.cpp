@@ -13,6 +13,7 @@ using namespace TimeUtils;
 // static initialization
 bool TorpControl::leftHomingFlag = false;
 bool TorpControl::rightHomingFlag = false;
+bool TorpControl::startSpinningDownFlag = false;
 bool TorpControl::enabled = false;
 
 TorpControl::TorpControl(
@@ -75,17 +76,16 @@ TorpControl::~TorpControl()
 
 int TorpControl::Run()
 {
+    if (GetTimeNow() < nextTaskTime) {
+        return 0;
+    }
+
+    double lBoom = 200; // for ease of access testing for now 
+    
     if (enabled) {
-
+        
         if (!TorpConfig::controlBodyOnlyFlag) { 
-
-            if (GetTimeNow() < nextTaskTime) {
-
-                return 0;
-            }
-
             // update
-            timeStart = GetTimeNow();
             state = nextState;
             stateName = nextStateName;
             time = GetTimeNow();
@@ -107,7 +107,6 @@ int TorpControl::Run()
             // Moving average filter applied to velocity calculation for noise reduction
             torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
             torpPrePos = torpPos; // position stored as pre-position for next cycle
-            
             switch(state)
             {
                 // State function: calculates Maxon acceleration time, sets reference acceleration
@@ -348,11 +347,11 @@ int TorpControl::Run()
                         
                         // Signal to spin down from task coordinator
                         } else if (deployDoneFlag && startSpinningDownFlag) { 
-
+                            cout << "[Torp Control] Spinning Down Flag Received" << endl;
                             retractStartFlag = true;
                         
                         // Masses are retracting, not finished
-                        } else if (retractStartFlag && !retractDoneFlag) {
+                        } if (retractStartFlag && !retractDoneFlag) {
 
                             nextState = RETRACTING_MASS;
                             tEndDeployRetract = time + tDeployRetract;
@@ -361,6 +360,7 @@ int TorpControl::Run()
                         } else if (deployDoneFlag && retractDoneFlag) {
 
                             nextState = DECELERATING;
+                            cout << "[Torp Control] Decelerating Torps" << endl;
 
                             // Calculate deceleration parameters
                             Ta = time + T1;
@@ -383,7 +383,6 @@ int TorpControl::Run()
                     
                     if (!deployDoneFlag && !deployCommandSent) { // deployment not finished 
                         double distPerStep = 0.04; // linear distance per step (mm)
-                        double lBoom = 200; // travel distance of each boom
                         int32_t deployTargetPos = (int32_t)(lBoom / distPerStep);
                         // Run steppers to desired position
                         torpStepperActuator_.runToPositionSide(side_, deployTargetPos);
@@ -409,8 +408,7 @@ int TorpControl::Run()
                     if (!retractDoneFlag && !retractCommandSent) { // retraction not finished
 
                         double distPerStep = 0.04;
-                        double lBoom = 200;
-                        int32_t retractTargetPos = -(int32_t)((lBoom - 10) / distPerStep);
+                        int32_t retractTargetPos = -(int32_t)((lBoom - 50) / distPerStep);
 
                         // Run steppers to desired position
                         torpStepperActuator_.runToPositionSide(side_, retractTargetPos);
@@ -428,6 +426,7 @@ int TorpControl::Run()
                         nextState = CRUISING;
                         Td = time + tCruise; // Post-retraction cruise time set
                         retractDoneFlag = true; // Retraction has finished
+                        cout << "[Torp Control] Retract Ended. Denergizing Motors." << endl;
                     }
 
                     break;
@@ -455,7 +454,7 @@ int TorpControl::Run()
 
                         } else if (time > Tb) { // Deceleration ramp-down window
 
-                            jerkProfVal = abs(maxAcc / T1); 
+                            jerkProfVal = refAcc / T1; 
                         }
                     }
                 
@@ -509,13 +508,10 @@ int TorpControl::Run()
         else {
             deployDoneFlag = true;  // Notify its done
         }
-
+        preTime = time;
+        timeEnd = GetTimeNow();
+        nextTaskTime += deltaTaskTime;
     }
-    preTime = time;
-
-    timeEnd = GetTimeNow();
-    nextTaskTime += deltaTaskTime;
-    
     return 0;
 
 }
