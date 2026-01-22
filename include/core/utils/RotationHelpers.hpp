@@ -1,22 +1,24 @@
 #pragma once
 #include <Eigen/Dense>
 #include <cmath>
-#include "Config.hpp"
+#include "core/utils/Env.hpp"
+
 using namespace Eigen;
 
 // Structure to define a rotation command
 struct RotationCommand
 {
-    Vector3d axis;       // Rotation axis (will be normalized)
-    double angle;        // Rotation angle in radians
-    double velocity;     // Maximum velocity for this move [rad/s]
-    double acceleration; // Acceleration for this move [rad/s^2]
+    Vector3d axis; // Rotation axis (will be normalized)
+    double angle;  // Rotation angle in radians
 
-    RotationCommand(Vector3d rotAxis, double rotAngle, double vel = AttitudeConfig::vel, double accel = AttitudeConfig::acc)
-        : axis(rotAxis), angle(rotAngle), velocity(vel), acceleration(accel) {}
+    static inline double velocity = envOrDefault("ATTITUDE_ROTATION_VEL", 0.01);
+    static inline double acceleration = envOrDefault("ATTITUDE_ROTATION_ACC", 5.0e-4);
+
+    RotationCommand(Vector3d rotAxis, double rotAngle)
+        : axis(rotAxis), angle(rotAngle) {}
 
     RotationCommand() // Default Initializer
-        : axis(Eigen::Vector3d::UnitX()), angle(0.0), velocity(AttitudeConfig::vel), acceleration(AttitudeConfig::acc)
+        : axis(Eigen::Vector3d::UnitX()), angle(0.0)
     {
     }
 };

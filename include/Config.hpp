@@ -1,12 +1,13 @@
 #pragma once
 
 #include "core/utils/RotationHelpers.hpp"
+#include "core/utils/Env.hpp"
+
 #include <vector>
 #include <queue>
 #include <cstdlib>
 #include <mutex>
 #include <iostream>
-#include "dotenv/dotenv.h"
 #include <Eigen/Dense>
 
 using Eigen::Matrix3d;
@@ -14,36 +15,6 @@ using Eigen::Vector3d;
 
 struct AttitudeConfig
 {
-    static inline void loadEnvFileOnce()
-    {
-        static std::once_flag onceFlag;
-        std::call_once(onceFlag, []()
-                       {
-            dotenv::init(dotenv::Preserve);
-            const char* sample = std::getenv("X_VELOCITY_K_P");
-            if (sample != nullptr) {
-                std::cout << "[Config] Loaded .env (X_VELOCITY_K_P=" << sample << ")" << std::endl;
-            } else {
-                std::cout << "[Config] Loaded .env (X_VELOCITY_K_P not set)" << std::endl;
-            } });
-    }
-
-    static inline double envOrDefault(const char *name, double defaultValue)
-    {
-        loadEnvFileOnce();
-        const char *value = std::getenv(name);
-        if (value == nullptr || *value == '\0')
-        {
-            return defaultValue;
-        }
-        char *end = nullptr;
-        const double parsed = std::strtod(value, &end);
-        if (end == value)
-        {
-            return defaultValue;
-        }
-        return parsed;
-    }
 
     // Initial Kick Paramters
     static inline constexpr double iniKickDuration = 1000.0e-3;
@@ -104,18 +75,16 @@ struct AttitudeConfig
     // --- Arbitrary Rotation Configuration --- //
 
     // Enable automatic find sun operation after detumbling
-    static inline constexpr bool enableFindSun = false;
+    static inline constexpr bool enableFindSun = true;
 
     // Enable arbitrary rotations (if false, no additional rotations after find sun)
     static inline constexpr bool enableArbitraryRotations = true;
 
     // Queue of rotation commands to execute sequentially
-    static inline constexpr double vel = 0.005;
-    static inline constexpr double acc = 1.0e-3;
     static inline std::vector<RotationCommand> getRotationQueue()
     {
         return {
-            // RotationCommand(Vector3d{0.0, 0.0, 1.0}, M_PI / 30.0, vel, acc), // IN RADIANS
+            RotationCommand(Vector3d{0.0, 0.0, 1.0}, M_PI / 30.0),
         };
     }
 };
