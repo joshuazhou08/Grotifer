@@ -3,4 +3,5 @@ build/
 logs/
 *.mp4
 .venv
-.env
+.env*
+plots
