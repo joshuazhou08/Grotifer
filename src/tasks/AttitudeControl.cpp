@@ -309,6 +309,7 @@ int AttitudeControl::Run()
                 findSunDone_ = true; // technically only needs to be set once but this works as well
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
+                movesDone_ = true;
                 nextStateName = "Holding Position";
                 cout << "[AttitudeControl] Holding position" << endl;
             }
