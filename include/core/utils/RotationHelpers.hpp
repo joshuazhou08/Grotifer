@@ -1,7 +1,7 @@
 #pragma once
 #include <Eigen/Dense>
 #include <cmath>
-
+#include "Config.hpp"
 using namespace Eigen;
 
 // Structure to define a rotation command
@@ -12,29 +12,33 @@ struct RotationCommand
     double velocity;     // Maximum velocity for this move [rad/s]
     double acceleration; // Acceleration for this move [rad/s^2]
 
-    RotationCommand(Vector3d rotAxis, double rotAngle, double vel = 0.01, double accel = 2.0e-3)
+    RotationCommand(Vector3d rotAxis, double rotAngle, double vel = AttitudeConfig::vel, double accel = AttitudeConfig::acc)
         : axis(rotAxis), angle(rotAngle), velocity(vel), acceleration(accel) {}
 
-    RotationCommand()   // Default Initializer
-        : axis(Eigen::Vector3d::UnitX()), angle(0.0), velocity(0.01), acceleration(2.0e-3) {}
-
+    RotationCommand() // Default Initializer
+        : axis(Eigen::Vector3d::UnitX()), angle(0.0), velocity(AttitudeConfig::vel), acceleration(AttitudeConfig::acc)
+    {
+    }
 };
 
-namespace RotationHelpers {
+namespace RotationHelpers
+{
     // Compute incremental rotation matrix between two body orientations.
-    inline Matrix3d BodyToBody(const Matrix3d& prevRotMat,
-                                      const Matrix3d& curRotMat)
+    inline Matrix3d BodyToBody(const Matrix3d &prevRotMat,
+                               const Matrix3d &curRotMat)
     {
         return curRotMat * prevRotMat.transpose();
     }
 
     // Convert angle from degrees to radians
-    inline double Deg2Rad(double angleDeg) {
+    inline double Deg2Rad(double angleDeg)
+    {
         return angleDeg * M_PI / 180.0;
     }
 
     // Convert angle from radians to degrees
-    inline double Rad2Deg(double angleRad) {
+    inline double Rad2Deg(double angleRad)
+    {
         return angleRad * 180.0 / M_PI;
     }
 
