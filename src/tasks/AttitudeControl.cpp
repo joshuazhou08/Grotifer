@@ -195,9 +195,10 @@ int AttitudeControl::Run()
                 findSunDone_ = true;
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
-            
+
             // If find sun not done, transition findSunDoneto moving regardless
-            if (!findSunDone_) {
+            if (!findSunDone_)
+            {
                 initializeMovingProfile(currentOrientation);
                 nextState = MOVING;
                 nextStateName = "Moving";
@@ -215,7 +216,8 @@ int AttitudeControl::Run()
                 setHoldingPosition(currentOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
-                if (rotationQueue.empty()) {
+                if (rotationQueue.empty())
+                {
                     cout << "[AttitudeControl] No rotations in queue, holding current position" << endl;
                     movesDone_ = true;
                 }
@@ -247,7 +249,8 @@ int AttitudeControl::Run()
         }
 
         // Stay in HOLDING_POSITION
-        else {
+        else
+        {
             nextState = HOLDING_POSITION;
             nextStateName = "Holding Position";
         }
@@ -263,11 +266,11 @@ int AttitudeControl::Run()
         Vector3d refAngularVelocityVec = currentOrientation.transpose() * inertialVelocityVec;
 
         // Log
-        OrientationRow orientationRow = LogHelpers::flattenWithTime(time, currentOrientation);
+        OrientationRow profileOrientationRow = LogHelpers::flattenWithTime(time, movingProfileOrientation);
         VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, refAngularVelocityVec);
         ProfileRow profileRow{time, motionSolver_.angleSoFar(), motionSolver_.velocityNow().norm()};
 
-        profileOrientationQueue_->push(orientationRow);
+        profileOrientationQueue_->push(profileOrientationRow);
         profileAngularVelocityQueue_->push(angularVelocityRow);
         profileQueue_->push(profileRow);
 
@@ -330,10 +333,10 @@ int AttitudeControl::Run()
 
 void AttitudeControl::applyTorque(const Vector3d &torque, double deltaT)
 {
-    // Apply sign correction 
+    // Apply sign correction
     Vector3d correctedTorque = torque;
-    correctedTorque(1) = torque(1); 
-    correctedTorque(2) = -torque(2); 
+    correctedTorque(1) = torque(1);
+    correctedTorque(2) = -torque(2);
 
     threeAxisActuator_.applyTorque(correctedTorque, deltaT);
 }
