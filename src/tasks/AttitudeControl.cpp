@@ -228,7 +228,9 @@ int AttitudeControl::Run()
             nextState = DETUMBLING;
             nextStateName = "Detumbling";
         }
-
+        Vector3d refAngularVelocityVec{{0.0, 0.0, 0.0}}; // logging
+        VectorRow row = LogHelpers::flattenWithTime(time, refAngularVelocityVec);
+        profileAngularVelocityQueue_->push(row);
         break;
     }
 
@@ -254,6 +256,13 @@ int AttitudeControl::Run()
             nextState = HOLDING_POSITION;
             nextStateName = "Holding Position";
         }
+
+        // logging
+        VectorRow angularVelocityRow = LogHelpers::flattenWithTime(time, refAngularVelocityVec);
+        OrientationRow orientationRow = LogHelpers::flattenWithTime(time, holdingPosition);
+
+        profileAngularVelocityQueue_->push(angularVelocityRow);
+        profileOrientationQueue_->push(orientationRow);
         break;
     }
 
