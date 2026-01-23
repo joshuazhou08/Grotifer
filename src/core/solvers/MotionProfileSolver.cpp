@@ -15,7 +15,16 @@ void MotionProfileSolver::initialize(const RotationCommand &command,
     axis_ = command.axis.normalized();
 
     double accelDur = std::abs(command.velocity / command.acceleration);
-    double constDur = std::abs(command.angle / command.velocity);
+    double angleTravelledDuringAccel = 0.5 * accelDur * command.velocity;
+    
+    double angleRemaining = std::abs(command.angle) - 2 * angleTravelledDuringAccel;
+    if (angleRemaining < 0) {
+        // Triangle profile case
+        accelDur = std::sqrt(std::abs(command.angle) / command.acceleration);
+        angleRemaining = 0.0;
+    }
+
+    double constDur = std::abs(angleRemaining / command.velocity);
     double deccelDur = accelDur;
 
     accelerationEnd_ = currentTime + accelDur;
@@ -26,7 +35,7 @@ void MotionProfileSolver::initialize(const RotationCommand &command,
     endingAngle_ = command.angle;
 
     initialized_ = true;
-
+ 
     std::cout << "[MotionProfileSolver] Initialized motion profile" << std::endl;
 }
 
