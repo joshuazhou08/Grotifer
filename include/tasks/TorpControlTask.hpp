@@ -70,6 +70,10 @@ public:
        
     };
 
+    inline bool spinningDown() {
+       return startSpinningDownFlag;
+    }
+
     // Getters
     inline bool doneSpinningUp() { return deployDoneFlag; }; 
     inline bool isEnabled() { return enabled; };
@@ -132,7 +136,6 @@ private:
 
     // Synchronization timing variables
     double preTime,                // Time before current cycle starts, used to calculate deltaT
-           timeStart,              // Time at beginning of cycle
            timeEnd;                // Time at end of cycle
 
     // Velocity profile timing change variables
@@ -140,21 +143,21 @@ private:
            tB;                     // Calculated end time for acceleration/deceleration phase
 
     // Flags for transitions
-    bool indexFlag,                // Flag to identify if torp has reached index position
-         startPosLocFlag,          // Used when torps are approaching starting position
-         doneHomingFlag,           // Both torp arms have finished homing
-         startSpinningDownFlag;    // Moves have completed, torp retract masses and spin down -- in from task coordinator
+    bool indexFlag = false,                // Flag to identify if torp has reached index position
+         startPosLocFlag = false,          // Used when torps are approaching starting position
+         doneHomingFlag = false;           // Both torp arms have finished homing
 
     static bool leftHomingFlag,           // Left torp has finished homing
-                rightHomingFlag;          // Right torp arm has finished homing
+                rightHomingFlag,          // Right torp arm has finished homing
+                startSpinningDownFlag;    // Moves have completed, torp retract masses and spin down -- in from task coordinator
 
     // == TorpMasterControl variables == //
     // Deployment/Retraction flags
-    bool deployStartFlag,           // Cruising started, masses have started to deploy
-         retractStartFlag,          // Cruising ended, masses have started to retract
-         deployDoneFlag,            // Used when masses finish deploying
-         retractDoneFlag,           // Used when masses finish retracting
-         readyToDeployFlag,         // Used when acceleration has completed, masses ready to deploy
+    bool deployStartFlag = false,           // Cruising started, masses have started to deploy
+         retractStartFlag = false,          // Cruising ended, masses have started to retract
+         deployDoneFlag = false,            // Used when masses finish deploying
+         retractDoneFlag = false,           // Used when masses finish retracting
+         readyToDeployFlag = false,         // Used when acceleration has completed, masses ready to deploy
          firstRunFlag       = true, // Used on first cycle to set initial preTime
          deployCommandSent  = false,// This command to the stepper is only sent once
          retractCommandSent = false;// This command to the stepper is only sent once
@@ -242,5 +245,11 @@ private:
      * @param desVel * @param gearRatio -- calculated desired velocity to send to motors
      */
     int roundingFunc(double val);
+
+    // FOR LOGGING IN SEPARATE THREAD
+    using Row = std::array<double, 3>; // timestep; pos; velocity
+
+    LockFreeRingBuffer<Row, 256> *profileQueue_;
+    LockFreeRingBuffer<Row, 256> *actualQueue_;
 
 };
