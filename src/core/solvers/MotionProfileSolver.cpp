@@ -14,22 +14,13 @@ void MotionProfileSolver::initialize(const RotationCommand &command,
     angle_ = 0.0;
     axis_ = command.axis.normalized();
 
-    double accelDur = std::abs(command.velocity / command.acceleration);
-    double angleTravelledDuringAccel = 0.5 * accelDur * command.velocity;
-    
-    double angleRemaining = std::abs(command.angle) - 2 * angleTravelledDuringAccel;
-    if (angleRemaining < 0) {
-        // Triangle profile case
-        accelDur = std::sqrt(std::abs(command.angle) / command.acceleration);
-        angleRemaining = 0.0;
-    }
+    // compute profile times
+    std::tie(accelerationEnd_, constantEnd_, decelerationEnd_) =
+        computeProfileTimes(command.angle,
+                            command.velocity,
+                            command.acceleration,
+                            currentTime + deltaTaskTime);
 
-    double constDur = std::abs(angleRemaining / command.velocity);
-    double deccelDur = accelDur;
-
-    accelerationEnd_ = currentTime + accelDur;
-    constantEnd_ = currentTime + accelDur + constDur;
-    decelerationEnd_ = currentTime + accelDur + constDur + deccelDur;
     startingOrientation_ = startingOrientation;
     endingOrientation_ = startingOrientation * RotationHelpers::calculateRotationMatrix(axis_ * command.angle);
     endingAngle_ = command.angle;
@@ -67,4 +58,29 @@ MotionProfileSolver::solve(double time, double deltaT)
     Matrix3d targetOrientation = startingOrientation_ * rotMat;
 
     return {inertialVel, targetOrientation};
+}
+
+
+// public helper for getting times 
+std::tuple<double, double, double> MotionProfileSolver::computeProfileTimes(double setpoint, double firstDeriv, double secondDeriv, double time)
+{
+    double rampUpDur = std::abs(firstDeriv / secondDeriv);
+    double changeDuringRamp = 0.5 * rampUpDur * firstDeriv; // integrate triangle area of trapeizoidal profile during ramp-up
+
+    double remainingChange = std::abs(setpoint) - 2 * changeDuringRamp; // multiply by 2 as change occurs during both ramp-up and ramp-down
+    if (remainingChange < 0) {
+        std::cout << "[MotionProfileSolver] Warning: setpoint too small for trapezoidal profile, returning triangle profile times." << std::endl;
+        // first derivative has a triangle profile case
+        rampUpDur = std::sqrt(std::abs(setpoint) / secondDeriv);
+        remainingChange = 0.0;
+    }
+
+    double constDur = std::abs(remainingChange / firstDeriv);
+    double decelDur = rampUpDur;
+
+    double rampUpTime = time + rampUpDur;
+    double constantTime = time + rampUpDur + constDur;
+    double rampDownTime = time + rampUpDur + constDur + decelDur;
+
+    return std::make_tuple(rampUpTime, constantTime, rampDownTime);
 }
