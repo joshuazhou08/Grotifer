@@ -26,12 +26,27 @@ def load_vectors(path):
     return times, vectors
 
 
+def load_profile_scalar(path):
+    data = np.loadtxt(path, delimiter=",")
+    if data.size == 0:
+        return np.array([]), np.array([]), np.array([])
+    data = np.atleast_2d(data)
+    times = data[:, 0]
+    position = data[:, 1]
+    velocity = data[:, 2]
+    return times, position, velocity
+
+
 def main():
     orientation_path = Path("logs/orientation.csv")
     profile_path = Path("logs/profile_orientation.csv")
     profile_scalar_path = Path("logs/profile.csv")
     angvel_path = Path("logs/angular_velocity.csv")
     angvel_profile_path = Path("logs/profile_angular_velocity.csv")
+    torp_left_actual_path = Path("logs/torp_left_actual.csv")
+    torp_left_profile_path = Path("logs/torp_left_profile.csv")
+    torp_right_actual_path = Path("logs/torp_right_actual.csv")
+    torp_right_profile_path = Path("logs/torp_right_profile.csv")
 
     if (
         not orientation_path.is_file()
@@ -39,10 +54,16 @@ def main():
         and not profile_scalar_path.is_file()
         and not angvel_path.is_file()
         and not angvel_profile_path.is_file()
+        and not torp_left_actual_path.is_file()
+        and not torp_left_profile_path.is_file()
+        and not torp_right_actual_path.is_file()
+        and not torp_right_profile_path.is_file()
     ):
         raise FileNotFoundError(
             "Missing logs/orientation.csv, logs/profile_orientation.csv, logs/profile.csv, "
-            "logs/angular_velocity.csv, and logs/profile_angular_velocity.csv"
+            "logs/angular_velocity.csv, logs/profile_angular_velocity.csv, "
+            "logs/torp_left_actual.csv, logs/torp_left_profile.csv, "
+            "logs/torp_right_actual.csv, and logs/torp_right_profile.csv"
         )
 
     t_actual, r_actual = load_rotations(orientation_path) if orientation_path.is_file() else (np.array([]), np.empty((0, 3, 3)))
@@ -75,13 +96,8 @@ def main():
         plt.close(fig)
 
     if profile_scalar_path.is_file():
-        profile_scalar = np.loadtxt(profile_scalar_path, delimiter=",")
-        if profile_scalar.size:
-            profile_scalar = np.atleast_2d(profile_scalar)
-            t_prof = profile_scalar[:, 0]
-            angle = profile_scalar[:, 1]
-            velocity = profile_scalar[:, 2]
-
+        t_prof, angle, velocity = load_profile_scalar(profile_scalar_path)
+        if t_prof.size:
             fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True, constrained_layout=True)
             axes[0].step(t_prof, angle, where="post", color="#003366", lw=1.5)
             axes[0].set_ylabel("Angle (rad)")
@@ -118,6 +134,43 @@ def main():
         axes[-1].set_xlabel("Time (s)")
 
         output_path = plots_dir / "angular_velocity_actual_vs_profile.png"
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+
+    for label, actual_path, profile_path in (
+        ("left", torp_left_actual_path, torp_left_profile_path),
+        ("right", torp_right_actual_path, torp_right_profile_path),
+    ):
+        if not actual_path.is_file() and not profile_path.is_file():
+            continue
+
+        t_torp_actual, pos_actual, vel_actual = (np.array([]), np.array([]), np.array([]))
+        t_torp_profile, pos_profile, vel_profile = (np.array([]), np.array([]), np.array([]))
+        if actual_path.is_file():
+            t_torp_actual, pos_actual, vel_actual = load_profile_scalar(actual_path)
+        if profile_path.is_file():
+            t_torp_profile, pos_profile, vel_profile = load_profile_scalar(profile_path)
+
+        fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True, constrained_layout=True)
+        fig.suptitle(f"Torp {label.capitalize()} Position and Velocity (Actual vs Profile)")
+
+        if t_torp_actual.size:
+            axes[0].step(t_torp_actual, pos_actual, where="post", color="#8B0000", lw=1.5, label="actual")
+        if t_torp_profile.size:
+            axes[0].step(t_torp_profile, pos_profile, where="post", color="#003366", lw=1.5, label="profile")
+        axes[0].set_ylabel("Position")
+        axes[0].grid(True, alpha=0.3)
+        axes[0].legend(loc="upper right")
+
+        if t_torp_actual.size:
+            axes[1].step(t_torp_actual, vel_actual, where="post", color="#8B0000", lw=1.5, label="actual")
+        if t_torp_profile.size:
+            axes[1].step(t_torp_profile, vel_profile, where="post", color="#003366", lw=1.5, label="profile")
+        axes[1].set_ylabel("Velocity")
+        axes[1].set_xlabel("Time (s)")
+        axes[1].grid(True, alpha=0.3)
+
+        output_path = plots_dir / f"torp_{label}_position_velocity.png"
         fig.savefig(output_path, dpi=150)
         plt.close(fig)
 
