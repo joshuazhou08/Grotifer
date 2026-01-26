@@ -41,7 +41,7 @@ public:
     /**
      * @brief Compute the timing segments of a trapezoidal profile.
      *
-     * Computes the ending times of the acceleration, constant, and deceleration phases
+     * Computes the durations of the acceleration, constant, and deceleration phases
      * required to reach a desired setpoint while respecting first- and second-derivative
      * constraints.
      *
@@ -50,12 +50,12 @@ public:
      * @param secondDeriv  Desired second derivative constant value (e.g., angular acceleration, jerk).
      * @param time         Current time (starting point for profile).
      *
-     * @return A tuple (rampUpTime, constantTime, rampDownTime) describing the time spent
+     * @return A tuple (rampUpDur, constantDur, rampDownDur) describing the time spent
      *         accelerating, moving at constant first derivative, and decelerating,
      *         respectively. The first derivative is assumed to ramp up from 0 to firstDeriv,
      *         hold, then ramp back down to 0, following a trapezoidal profile.
      */
-    static inline std::tuple<double, double, double> computeProfileTimes(double setpoint, double firstDeriv, double secondDeriv, double time);
+    static inline std::tuple<double, double, double> computeProfileDurations(double setpoint, double firstDeriv, double secondDeriv);
 
 private:
     double velocity_ = 0.0;

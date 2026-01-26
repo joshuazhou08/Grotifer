@@ -15,11 +15,14 @@ void MotionProfileSolver::initialize(const RotationCommand &command,
     axis_ = command.axis.normalized();
 
     // compute profile times
-    std::tie(accelerationEnd_, constantEnd_, decelerationEnd_) =
-        computeProfileTimes(command.angle,
+    auto[rampUpDur, constDur, rampDownDur] =
+        computeProfileDurations(command.angle,
                             command.velocity,
-                            command.acceleration,
-                            currentTime + deltaTaskTime);
+                            command.acceleration);
+
+    accelerationEnd_ = currentTime + rampUpDur;
+    constantEnd_     = currentTime + rampUpDur + constDur;
+    decelerationEnd_ = currentTime + rampUpDur + constDur + rampDownDur;
 
     startingOrientation_ = startingOrientation;
     endingOrientation_ = startingOrientation * RotationHelpers::calculateRotationMatrix(axis_ * command.angle);
@@ -62,7 +65,7 @@ MotionProfileSolver::solve(double time, double deltaT)
 
 
 // public helper for getting times 
-std::tuple<double, double, double> MotionProfileSolver::computeProfileTimes(double setpoint, double firstDeriv, double secondDeriv, double time)
+std::tuple<double, double, double> MotionProfileSolver::computeProfileDurations(double setpoint, double firstDeriv, double secondDeriv)
 {
     double rampUpDur = std::abs(firstDeriv / secondDeriv);
     double changeDuringRamp = 0.5 * rampUpDur * firstDeriv; // integrate triangle area of trapeizoidal profile during ramp-up
@@ -78,9 +81,5 @@ std::tuple<double, double, double> MotionProfileSolver::computeProfileTimes(doub
     double constDur = std::abs(remainingChange / firstDeriv);
     double decelDur = rampUpDur;
 
-    double rampUpTime = time + rampUpDur;
-    double constantTime = time + rampUpDur + constDur;
-    double rampDownTime = time + rampUpDur + constDur + decelDur;
-
-    return std::make_tuple(rampUpTime, constantTime, rampDownTime);
+    return std::make_tuple(rampUpDur, constDur, decelDur);
 }
