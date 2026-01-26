@@ -98,8 +98,9 @@ struct TorpConfig
     // Torp Master Control values
     static inline double oprVel = envOrDefault("TORP_OPR_VEL", 1.0);  // Operational velocity (RPM)
     static inline double acc = envOrDefault("TORP_ACC", 0.3);         // For torp max acceleration, 1.0 for mounted weights
+    static inline double jerk = envOrDefault("TORP_JERK", 0.002);     // For torp max jerk, 0.1 for mounted weights
+    static inline double tCruise = envOrDefault("TORP_T_CRUISE", 20); // Time cruising
     static inline double tAccDec = envOrDefault("TORP_T_ACCDEC", 60); // acc/dec time (s), 60 for mounted weights
-    static inline double tCruise = envOrDefault("TORP_T_CRUISE", 20); // cruise time (s)
     static inline constexpr double tDeployRetract = 65;
     static inline constexpr double stepperSpeed = (200.0 / 60) * (1.034 / 0.04) * 10000; // stepper motor speed (steps/10000s)
 
