@@ -26,7 +26,7 @@ struct AttitudeConfig
     // --- Flags For Configuring Behavior --- //
     static inline constexpr bool initialKick = false; // Perform initial kick to demonstrate detumbling capabilities
 
-    static inline constexpr double deltaTaskTime = 25e-3;
+    static inline constexpr double deltaTaskTime = 100e-3;
 
     // Fans
     static inline constexpr double torqueToSpeed = 40000;

@@ -1,5 +1,6 @@
 #include "tasks/TorpControlTask.hpp"
 #include "core/utils/TimeUtils.hpp"
+#include "core/solvers/MotionProfileSolver.hpp"
 #include "core/control/PIControl.hpp"
 #include "hardware/sensors/Labjack.hpp"
 #include "core/utils/LogHelpers.hpp"
@@ -45,7 +46,8 @@ TorpControl::TorpControl(
     offsetPosLim = torpMaxonActuator_.getOffsetPosLim(side_);
     startPosLim  = torpMaxonActuator_.getStartPosLim(side_);
     flipSign = (homingVel >= 0) ? false : true; 
-    leftHomingFlag = false;
+    jerk = ((double) getSignDir(flipSign)) * TorpConfig::jerk;
+    leftHomingFlag = false; 
     rightHomingFlag = false;
     doneHomingFlag = false;
     startPosLocFlag = false;
@@ -53,11 +55,11 @@ TorpControl::TorpControl(
     
     // Torp Master Control variables
     oprVelMag = getSignDir(flipSign) * TorpConfig::oprVel;
-    tAccDec = TorpConfig::tAccDec;
     tCruise = TorpConfig::tCruise;
     tDeployRetract = TorpConfig::tDeployRetract;
+    
 
-    maxAccAllowed = abs(2 * oprVelMag / tAccDec);
+    maxAccAllowed = 0.03;
 
     deltaTaskTime = TorpConfig::deltaTaskTime;
     nextTaskTime = 0;
@@ -67,8 +69,14 @@ TorpControl::TorpControl(
     cout << "[TorpControl] Torp sequence starting." << endl;
 
     // Initialize logging in separate thread
-    profileQueue_ = addQueue<Row, 256>("torp_profile.csv");
-    actualQueue_  = addQueue<Row, 256>("torp_actual.csv");
+
+    if (side_ == Side::L) {
+        profileQueue_ = addQueue<Row, 256>("torp_left_profile.csv");
+        actualQueue_  = addQueue<Row, 256>("torp_left_actual.csv");
+    } else {
+        profileQueue_ = addQueue<Row, 256>("torp_right_profile.csv");
+        actualQueue_  = addQueue<Row, 256>("torp_right_actual.csv");
+    }
 }
 
 TorpControl::~TorpControl()
@@ -110,7 +118,8 @@ int TorpControl::Run()
 
     }
 
-    deltaT = GetTimeNow() - preTime; // fresh deltaT for going into the switch statement
+    
+    deltaT = time - preTime; // fresh deltaT for going into the switch statement
 
     // Moving average filter applied to velocity calculation for noise reduction
     torpVel = velMAFilter.addSample(((torpPos - torpPrePos) / 360.0) / (deltaT / 60.0));
@@ -126,7 +135,7 @@ int TorpControl::Run()
 
             refPos = torpPos;
             tA = GetTimeNow(); // start time for the acceleration phase
-            tB = tA + abs(homingVel / maxAcc) - deltaTaskTime; // end time of acceleration phase -- t = v/a
+            tB = tA + abs(homingVel / maxAcc) - deltaT; // end time of acceleration phase -- t = v/a
             refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
 
             cout << "[TorpControl] 2. Finding home index state, locating index position." << endl;
@@ -134,7 +143,7 @@ int TorpControl::Run()
             break;
         // State function:
         // 1. Retrieves motor positon and velocity from Maxon controllers, torp position from labjack encoder
-        // and calculates the torp velocity from torp position over time on every cycle.
+        // and calculates the torp velocity from torp positiotn over time on every cycle.
         // 2. Accelerates torp arms to homing velocity and searches for index/home position on encoder
         // 3. Determines deceleration profile required for stopping at the starting position
         case FINDING_HOME_INDEX:
@@ -287,23 +296,21 @@ int TorpControl::Run()
             // S-Curve acceleration profile initialization
             refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
 
-            T2 = abs(2 * oprVelMag / refAcc) - tAccDec; // constant acceleration phase duration
-            T1 = 0.5 * (tAccDec - T2); // ramp-up & ramp-down time
+            std::tie(T1, T2, T3) = MotionProfileSolver::computeProfileDurations(oprVelMag, refAcc, jerk);
 
             Ta = time + T1; // Time at end of ramp-up, beginning of constant acceleration
             Tb = time + T1 + T2; // End of constant acceleration, time at start of ramp-down
-            Tc = time + tAccDec; // Total time of acceleration
+            Tc = time + T1 + T2 + T3; // Total time of acceleration
+
             
             posProfVal = startPosAct;
             velProfVal = 0.0;
             accProfVal = 0.0;
-            jerkProfVal = refAcc / T1; // Ramp-up acceleration rate of change profile
+            jerkProfVal = jerk; // set initial jerk value
             cout<< "[TorpControl] Starting to accelerate with jerk: " << jerkProfVal << endl
                 << "Ta: " << Ta << endl
                 << "Tb: " << Tb << endl
                 << "Tc: " << Tc << endl;
-
-                    
 
             nextState = ACCELERATING;
 
@@ -338,7 +345,7 @@ int TorpControl::Run()
 
                 } else if (time > Tb) {
 
-                    jerkProfVal = -1 * refAcc / T1; // Ramp-down acceleration rate of change profile
+                    jerkProfVal = -1 * jerk; // Ramp-down acceleration rate of change profile
                 }
             }   
 
@@ -373,8 +380,8 @@ int TorpControl::Run()
                     // Calculate deceleration parameters
                     Ta = time + T1;
                     Tb = time + T1 + T2;
-                    Tc = time + tAccDec;
-                    jerkProfVal = -1 * refAcc / T1;
+                    Tc = time + T1 + T2 + T3;
+                    jerkProfVal = -1 * jerk;
 
                 // Cruising between deployment and retraction
                 } else {
@@ -462,7 +469,7 @@ int TorpControl::Run()
 
                 } else if (time > Tb) { // Deceleration ramp-down window
 
-                    jerkProfVal = refAcc / T1; 
+                    jerkProfVal = jerk; 
                 }
             }
         
@@ -519,7 +526,7 @@ int TorpControl::Run()
     
     preTime = time;
     timeEnd = GetTimeNow();
-    nextTaskTime += deltaTaskTime;
+    nextTaskTime = timeEnd + deltaTaskTime;
 
     return 0;
 

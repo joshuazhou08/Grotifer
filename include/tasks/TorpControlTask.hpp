@@ -108,10 +108,10 @@ private:
            posErr;                 // Position error of torp arms pulled from PI controller
     
     // Reference profile variables for logging
-    double refPos,                 // Home position, or calculated from refVel integration
-           refAcc,                 // Commanded acceleration for torp arms at any time (RPM/s)
-           refVel,                 // Commanded velocity for torp arms at any time (RPM)
-           desVel;                 // Calculated velocity with PI Controller
+    double refPos = 0,                 // Home position, or calculated from refVel integration
+           refAcc = 0,                 // Commanded acceleration for torp arms at any time (RPM/s)
+           refVel = 0,                 // Commanded velocity for torp arms at any time (RPM)
+           desVel = 0;                 // Calculated velocity with PI Controller
 
     // Home/start position variables for logging
     double homeTorpPos,            // Home position for torp retrieved from labjack at index
@@ -122,6 +122,8 @@ private:
     // Homing velocity/acceleration variables
     double homingVel,              // Reference homing velocity for Maxons
            maxAcc,                 // Reference max acceleration for Maxons
+           maxAccAllowed,          // clamping
+           jerk,                   // Reference jerk from config files
            accMag,                 // Reference acceleration during deceleration of torps
            offsetPos,              // Offset distance from home index to starting position (deg)
            offsetPosLim,           // Minimum offset distance that requires deceleration profile (deg)
@@ -135,8 +137,7 @@ private:
            deltaT;                 // Current time - preTime, used in velocity integration
 
     // Synchronization timing variables
-    double preTime,                // Time before current cycle starts, used to calculate deltaT
-           timeEnd;                // Time at end of cycle
+    double preTime;                // Time before current cycle starts, used to calculate deltaT
 
     // Velocity profile timing change variables
     double tA,                     // Start time for acceleration/deceleration phase
@@ -164,7 +165,6 @@ private:
 
     // Acceleration, deployment, cruising variables
     double oprVelMag,              // Operating velocity during deployement (RPM)
-           maxAccAllowed,          // Max acceleration as calculated for deployment state (rpm/s)
            tAccDec,                // Time for acceleration/deceleration for deployment state (s)
            tCruise,                // Cruise time for deployment phase (s)
            tDeployRetract,         // Time for deploying/retracting (s)
@@ -180,8 +180,9 @@ private:
            Tb,                     // Time at the beginning of acceleration/deceleration ramp-down
            Tc,                     // Time when acceleration/deceleration is finished
            Td,                     // Time for each phase of cruising state
-           T1,                     // Ramp-up and ramp-down time duration
-           T2;                     // Constant acceleration time duration
+           T1,                     // Ramp-up time duration
+           T2,                     // Constant acceleration time duration
+           T3;                     // Ramp-down time duration, same as ramp-up but for readability     
 
     static bool enabled;           // Flag to start torp sequence from task coordinator
     
