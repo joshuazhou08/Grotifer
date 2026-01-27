@@ -68,7 +68,7 @@ MotionProfileSolver::solve(double time, double deltaT)
 std::tuple<double, double, double> MotionProfileSolver::computeProfileDurations(double setpoint, double firstDeriv, double secondDeriv)
 {
     double rampUpDur = std::abs(firstDeriv / secondDeriv);
-    double changeDuringRamp = 0.5 * rampUpDur * firstDeriv; // integrate triangle area of trapeizoidal profile during ramp-up
+    double changeDuringRamp = std::abs(0.5 * rampUpDur * firstDeriv); // integrate triangle area of trapeizoidal profile during ramp-up
 
     double remainingChange = std::abs(setpoint) - 2 * changeDuringRamp; // multiply by 2 as change occurs during both ramp-up and ramp-down
     if (remainingChange < 0) {
