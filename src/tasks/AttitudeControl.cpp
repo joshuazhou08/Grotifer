@@ -338,9 +338,8 @@ int AttitudeControl::Run()
 
     // Update preTime for next iteration
     preTime = time;
-
-    nextTaskTime += deltaTaskTime;
     timeEnd = GetTimeNow();
+    nextTaskTime = timeEnd + deltaTaskTime;
 
     return 0;
 }
