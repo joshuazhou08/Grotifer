@@ -62,6 +62,10 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
     profileAngularVelocityQueue_ = addQueue<VectorRow, 256>("profile_angular_velocity.csv");
 
     profileQueue_ = addQueue<ProfileRow, 256>("profile.csv");
+
+    positionControlLoopQueue_ = addQueue<ControlLoopRow, 256>("position_control_loop.csv");
+    velocityControlLoopQueue_ = addQueue<ControlLoopRow, 256>("velocity_control_loop.csv");
+
 }
 
 AttitudeControl::~AttitudeControl()
@@ -196,7 +200,7 @@ int AttitudeControl::Run()
                 cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
             }
 
-            // If find sun not done, transition findSunDoneto moving regardless
+            // If find sun not done, transition to moving as find sun and moving use the same state, this is for readability
             if (!findSunDone_)
             {
                 initializeMovingProfile(currentOrientation);
@@ -244,8 +248,9 @@ int AttitudeControl::Run()
 
         // Transition to MOVING if there are rotations in the queue and enabled
         if (!rotationQueue.empty() && movesEnabled_)
-        {
-            initializeMovingProfile(currentOrientation);
+        {   
+            // use the holding position as the starting orientation for a more predictable profile
+            initializeMovingProfile(holdingPosition);
             nextState = MOVING;
             nextStateName = "Moving";
         }
@@ -414,7 +419,7 @@ Vector3d AttitudeControl::cascadeControl(const Matrix3d &targetOrientation, cons
     return torque;
 };
 
-void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation)
+void AttitudeControl::initializeMovingProfile(const Matrix3d &startingOrientation)
 {
     // Capture current orientation
 
@@ -443,7 +448,7 @@ void AttitudeControl::initializeMovingProfile(const Matrix3d &currentOrientation
 
     // Initialize motion profile solver
     double timeNow = GetTimeNow();
-    motionSolver_.initialize(currentRotationCommand, timeNow, deltaTaskTime, currentOrientation);
+    motionSolver_.initialize(currentRotationCommand, timeNow, deltaTaskTime, startingOrientation);
 
     std::cout << "[AttitudeControl] MotionProfileSolver initialized" << std::endl;
     std::cout << "[AttitudeControl]   Acceleration End Time: " << motionSolver_.accelEnd() << std::endl;

@@ -137,9 +137,9 @@ private:
 
     /**
      * @brief Initializes the moving profile for the next rotation in the queue
-     * @param currentOrientation The current orientation matrix
+     * @param startingOrientation The starting orientation matrix
      */
-    void initializeMovingProfile(const Matrix3d &currentOrientation);
+    void initializeMovingProfile(const Matrix3d &startingOrientation);
 
     /**
      * @brief Calculates the motion profile velocity and orientation at the current time
