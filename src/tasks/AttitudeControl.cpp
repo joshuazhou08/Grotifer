@@ -40,7 +40,7 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
 
 {
 
-    cout << "[AttitudeControl] Logs initialized" << endl;
+    cout << "[AttitudeControl] Logs initialized \n";
 
     deltaTaskTime = AttitudeConfig::deltaTaskTime;
 
@@ -52,7 +52,7 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
     }
     rotationQueueInitialized = true;
 
-    cout << "[AttitudeControl] Moves planned" << endl;
+    cout << "[AttitudeControl] Moves planned \n";
 
     // Initialize Logging in Separate Thread
     orientationQueue_ = addQueue<OrientationRow, 256>("orientation.csv");
@@ -71,7 +71,7 @@ AttitudeControl::AttitudeControl(ThreeAxisActuator &threeAxisActuator,
 AttitudeControl::~AttitudeControl()
 {
 
-    cout << "[AttitudeControl] Shutting down" << endl;
+    cout << "[AttitudeControl] Shutting down \n";
 }
 
 int AttitudeControl::Run()
@@ -93,7 +93,7 @@ int AttitudeControl::Run()
     string message = ss.getAddMessage(sunInfo);
     if (sunInfo != 0)
     {
-        cout << "[AttitudeControl] Sun Message: " << message << endl;
+        cout << "[AttitudeControl] Sun Message: " << message << "\n";
     }
 
     // Read the inclinometer
@@ -131,14 +131,14 @@ int AttitudeControl::Run()
             iniKickEndTime = GetTimeNow() + AttitudeConfig::iniKickDuration;
             nextState = INITIALIZING_MOTION;
             nextStateName = "Initializing Motion";
-            cout << "[AttitudeControl] Finished initializing. Going into initial kick" << endl;
+            cout << "[AttitudeControl] Finished initializing. Going into initial kick \n";
         }
         else
         {
             detumblingEndTime = GetTimeNow() + AttitudeConfig::detumblingMaxDuration;
             nextState = DETUMBLING;
             nextStateName = "Detumbling";
-            cout << "[AttitudeControl] Finished initializing. Going into detumbling" << endl;
+            cout << "[AttitudeControl] Finished initializing. Going into detumbling \n";
         }
 
         break;
@@ -162,7 +162,7 @@ int AttitudeControl::Run()
             detumblingEndTime = GetTimeNow() + AttitudeConfig::detumblingMaxDuration;
             nextState = DETUMBLING;
             nextStateName = "Detumbling";
-            cout << "[AttitudeControl] Initial Kick Done" << endl;
+            cout << "[AttitudeControl] Initial Kick Done \n";
         }
         else
         {
@@ -192,12 +192,12 @@ int AttitudeControl::Run()
             {
                 prependFindSunRotation(currentOrientation);
                 findSunDone_ = false;
-                cout << "[AttitudeControl] Detumbling Done - Find Sun rotation added to queue" << endl;
+                cout << "[AttitudeControl] Detumbling Done - Find Sun rotation added to queue \n";
             }
             else
             {
                 findSunDone_ = true;
-                cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations" << endl;
+                cout << "[AttitudeControl] Detumbling Done - Find Sun disabled, proceeding to arbitrary rotations \n";
             }
 
             // If find sun not done, transition to moving as find sun and moving use the same state, this is for readability
@@ -222,7 +222,7 @@ int AttitudeControl::Run()
                 nextStateName = "Holding Position";
                 if (rotationQueue.empty())
                 {
-                    cout << "[AttitudeControl] No rotations in queue, holding current position" << endl;
+                    cout << "[AttitudeControl] No rotations in queue, holding current position \n";
                     movesDone_ = true;
                 }
             }
@@ -308,7 +308,7 @@ int AttitudeControl::Run()
             // Check if there are more moves in the queue
             if (!rotationQueue.empty() && movesEnabled_)
             {
-                cout << "[AttitudeControl] Current move done! Preparing next move from queue" << endl;
+                cout << "[AttitudeControl] Current move done! Preparing next move from queue \n";
                 motionSolver_.reset();
                 initializeMovingProfile(currentOrientation);
                 nextState = MOVING;
@@ -320,7 +320,7 @@ int AttitudeControl::Run()
                 setHoldingPosition(movingProfileOrientation);
                 nextState = HOLDING_POSITION;
                 nextStateName = "Holding Position";
-                cout << "[AttitudeControl] Holding position" << endl;
+                cout << "[AttitudeControl] Holding position \n";
             }
         }
         else
@@ -373,8 +373,8 @@ void AttitudeControl::setHoldingPosition(const Matrix3d &orientation)
 {
     holdingPosition = orientation;
     holdingPositionSet = true;
-    cout << "[AttitudeControl] Holding position: " << endl
-         << holdingPosition << endl;
+    cout << "[AttitudeControl] Holding position: \n"
+         << holdingPosition << "\n";
 }
 
 void AttitudeControl::prependFindSunRotation(const Matrix3d &currentOrientation)
@@ -400,11 +400,11 @@ void AttitudeControl::prependFindSunRotation(const Matrix3d &currentOrientation)
     // Replace the original queue with temp queue
     rotationQueue = move(tempQueue);
 
-    cout << "[AttitudeControl] Find Sun rotation prepended to queue:" << endl;
-    cout << "[AttitudeControl]   Axis: " << rotVec.normalized().transpose() << endl;
-    cout << "[AttitudeControl]   Angle (rad): " << rotAngle << endl;
-    cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(rotAngle) << endl;
-    cout << "[AttitudeControl]   Total commands in queue: " << rotationQueue.size() << endl;
+    cout << "[AttitudeControl] Find Sun rotation prepended to queue: \n";
+    cout << "[AttitudeControl]   Axis: " << rotVec.normalized().transpose() << "\n";
+    cout << "[AttitudeControl]   Angle (rad): " << rotAngle << "\n";
+    cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(rotAngle) << "\n";
+    cout << "[AttitudeControl]   Total commands in queue: " << rotationQueue.size() << "\n";
 }
 
 Vector3d AttitudeControl::cascadeControl(const Matrix3d &targetOrientation, const Matrix3d &currentOrientation, const Vector3d &targetAngularVelocityVec, const Vector3d &currentAngularVelocityVec)
@@ -436,7 +436,7 @@ void AttitudeControl::initializeMovingProfile(const Matrix3d &startingOrientatio
     // Ensure there’s a command available
     if (rotationQueue.empty())
     {
-        std::cout << "[AttitudeControl] No rotation configured - queue is empty" << std::endl;
+        std::cout << "[AttitudeControl] No rotation configured - queue is empty \n";
         return;
     }
 
@@ -448,20 +448,20 @@ void AttitudeControl::initializeMovingProfile(const Matrix3d &startingOrientatio
     currentRotationCommand.axis.normalize();
 
     // Log details
-    std::cout << "[AttitudeControl] Executing Rotation Command:" << std::endl;
-    std::cout << "[AttitudeControl]   Axis: " << currentRotationCommand.axis.transpose() << std::endl;
-    std::cout << "[AttitudeControl]   Angle (rad): " << currentRotationCommand.angle << std::endl;
-    std::cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(currentRotationCommand.angle) << std::endl;
-    std::cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << std::endl;
-    std::cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << std::endl;
-    std::cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << std::endl;
+    std::cout << "[AttitudeControl] Executing Rotation Command: \n";
+    std::cout << "[AttitudeControl]   Axis: " << currentRotationCommand.axis.transpose() << "\n";
+    std::cout << "[AttitudeControl]   Angle (rad): " << currentRotationCommand.angle << "\n";
+    std::cout << "[AttitudeControl]   Angle (deg): " << Rad2Deg(currentRotationCommand.angle) << "\n";
+    std::cout << "[AttitudeControl]   Velocity: " << currentRotationCommand.velocity << "\n";
+    std::cout << "[AttitudeControl]   Acceleration: " << currentRotationCommand.acceleration << "\n";
+    std::cout << "[AttitudeControl]   Remaining moves in queue: " << rotationQueue.size() << "\n";
 
     // Initialize motion profile solver
     double timeNow = GetTimeNow();
     motionSolver_.initialize(currentRotationCommand, timeNow, deltaTaskTime, startingOrientation);
 
-    std::cout << "[AttitudeControl] MotionProfileSolver initialized" << std::endl;
-    std::cout << "[AttitudeControl]   Acceleration End Time: " << motionSolver_.accelEnd() << std::endl;
-    std::cout << "[AttitudeControl]   Constant End Time: " << motionSolver_.constEnd() << std::endl;
-    std::cout << "[AttitudeControl]   Deceleration End Time: " << motionSolver_.decelEnd() << std::endl;
+    std::cout << "[AttitudeControl] MotionProfileSolver initialized \n";
+    std::cout << "[AttitudeControl]   Acceleration End Time: " << motionSolver_.accelEnd() << "\n";
+    std::cout << "[AttitudeControl]   Constant End Time: " << motionSolver_.constEnd() << "\n";
+    std::cout << "[AttitudeControl]   Deceleration End Time: " << motionSolver_.decelEnd() << "\n";
 }

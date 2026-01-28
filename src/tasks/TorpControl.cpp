@@ -66,7 +66,7 @@ TorpControl::TorpControl(
     state = INITIALIZING_TORP;
     nextState = INITIALIZING_TORP;
 
-    cout << "[TorpControl] Torp sequence starting." << endl;
+    cout << "[TorpControl] Torp sequence starting.\n";
 
     // Initialize logging in separate thread
 
@@ -81,7 +81,7 @@ TorpControl::TorpControl(
 
 TorpControl::~TorpControl()
 {
-    cout << "[TorpControl] Shutting down." << endl;
+    cout << "[TorpControl] Shutting down.\n";
 }
 
 int TorpControl::Run()
@@ -131,14 +131,14 @@ int TorpControl::Run()
 
             nextState = FINDING_HOME_INDEX;
 
-            cout << "[TorpControl] 1. Initialization state, setting timing variables." << endl;
+            cout << "[TorpControl] 1. Initialization state, setting timing variables.\n";
 
             refPos = torpPos;
             tA = GetTimeNow(); // start time for the acceleration phase
             tB = tA + abs(homingVel / maxAcc) - deltaT; // end time of acceleration phase -- t = v/a
             refAcc = ((double) getSignDir(flipSign)) * maxAcc; // reference acceleration set to maxAcc
 
-            cout << "[TorpControl] 2. Finding home index state, locating index position." << endl;
+            cout << "[TorpControl] 2. Finding home index state, locating index position.\n";
 
             break;
         // State function:
@@ -164,7 +164,9 @@ int TorpControl::Run()
             // Home position/index detection, latching, flag setting
             if (getIndexFlag()) {
                 
-                cout << "[TorpControl] 2. Finding home index state, index position located." << endl;
+                if (!indexFlag) {
+                    cout << "[TorpControl] 2. Finding home index state, index position located.\n";
+                }
 
                 indexFlag = true;
                 nextState = MOVING_TO_START_POS;
@@ -247,7 +249,9 @@ int TorpControl::Run()
             // Start location positioning:
             // Outer condition: sets startPosLocFlag when position within 125% of limit or small velocity
             if (abs(torpPos - startPosRef) <= 1.25 * startPosLim || abs(refVel) <=0.035) {
-                cout << "[Torp Control] Torp starting position found" << endl;
+                if (!startPosLocFlag) {
+                    cout << "[Torp Control] Torp starting position found\n";
+                }
                 startPosLocFlag = true;
 
                 // Inner condition: sets startPosAct when position error inside limit, commanded 
@@ -307,10 +311,10 @@ int TorpControl::Run()
             velProfVal = 0.0;
             accProfVal = 0.0;
             jerkProfVal = jerk; // set initial jerk value
-            cout<< "[TorpControl] Starting to accelerate with jerk: " << jerkProfVal << endl
-                << "Ta: " << Ta << endl
-                << "Tb: " << Tb << endl
-                << "Tc: " << Tc << endl;
+            cout << "[TorpControl] Starting to accelerate with jerk: " << jerkProfVal << "\n"
+                << "Ta: " << Ta << "\n"
+                << "Tb: " << Tb << "\n"
+                << "Tc: " << Tc << "\n";
 
             nextState = ACCELERATING;
 
@@ -323,9 +327,9 @@ int TorpControl::Run()
 
             // Acceleration is finished
             if (time >= Tc) {
-                cout << "[Torp Control] Done accelerating, going into cruising." << endl
-                        << "Ref vel: " << refVel << endl    
-                        << "Opr vel: " << oprVelMag << endl;
+                cout << "[Torp Control] Done accelerating, going into cruising.\n"
+                        << "Ref vel: " << refVel << "\n"    
+                        << "Opr vel: " << oprVelMag << "\n";
                 nextState = CRUISING;
                 readyToDeployFlag = true;
                 deployStartFlag = true;
@@ -362,7 +366,7 @@ int TorpControl::Run()
                 
                 // Signal to spin down from task coordinator
                 } else if (deployDoneFlag && startSpinningDownFlag) { 
-                    cout << "[Torp Control] Spinning Down Flag Received" << endl;
+                    cout << "[Torp Control] Spinning Down Flag Received\n";
                     retractStartFlag = true;
                 
                 // Masses are retracting, not finished
@@ -375,7 +379,7 @@ int TorpControl::Run()
                 } else if (deployDoneFlag && retractDoneFlag) {
 
                     nextState = DECELERATING;
-                    cout << "[Torp Control] Decelerating Torps" << endl;
+                    cout << "[Torp Control] Decelerating Torps\n";
 
                     // Calculate deceleration parameters
                     Ta = time + T1;
@@ -402,7 +406,7 @@ int TorpControl::Run()
                 // Run steppers to desired position
                 torpStepperActuator_.runToPositionSide(side_, deployTargetPos);
                 deployCommandSent = true;
-                cout << "[Torp Control] Deploy command sent for masses" << endl;
+                cout << "[Torp Control] Deploy command sent for masses\n";
             }
 
             // Continue to run the Maxons at cruising speed
@@ -428,7 +432,7 @@ int TorpControl::Run()
                 // Run steppers to desired position
                 torpStepperActuator_.runToPositionSide(side_, retractTargetPos);
                 retractCommandSent = true;
-                cout << "[Torp Control] Retract command sent for masses" << endl;
+                cout << "[Torp Control] Retract command sent for masses\n";
 
                 
             }
@@ -441,7 +445,7 @@ int TorpControl::Run()
                 nextState = CRUISING;
                 Td = time + tCruise; // Post-retraction cruise time set
                 retractDoneFlag = true; // Retraction has finished
-                cout << "[Torp Control] Retract Ended. Denergizing Motors." << endl;
+                cout << "[Torp Control] Retract Ended. Denergizing Motors.\n";
             }
 
             break;
@@ -458,6 +462,7 @@ int TorpControl::Run()
                 velProfVal = 0;
                 accProfVal = 0;
                 jerkProfVal = 0;
+                cout << "[Torp Control] Torp actuation phase completed. Torp arms stopped.\n";
 
             // Enters deceleration state in (time < Ta) case, initial jerkProfVal set in Cruising
             } else {
@@ -474,10 +479,7 @@ int TorpControl::Run()
             }
         
         case STOPPING:
-            
             torpMaxonActuator_.haltMotion(side_);
-            cout << "[Torp Control] Torp actuation phase completed. Torp arms stopped." << endl;
-
             break;
 
     }
@@ -514,7 +516,7 @@ int TorpControl::Run()
     int signal = roundingFunc(desVel * TorpConfig::gearRatio);
     // Actuate torp Maxon Motors
     if (!torpMaxonActuator_.setVelocity(side_, signal)) {
-        cout << "[Torp Control] Failed to set torp velocity" << endl;
+        cout << "[Torp Control] Failed to set torp velocity\n";
     }
 
     // Logging
