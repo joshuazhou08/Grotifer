@@ -37,6 +37,30 @@ def load_profile_scalar(path):
     return times, position, velocity
 
 
+def rotation_axis_angle(rotations):
+    if rotations.size == 0:
+        return np.empty((0, 3)), np.array([])
+    axes = np.zeros((rotations.shape[0], 3))
+    angles = np.zeros(rotations.shape[0])
+    for i, rot in enumerate(rotations):
+        trace = np.trace(rot)
+        cos_angle = (trace - 1.0) * 0.5
+        cos_angle = np.clip(cos_angle, -1.0, 1.0)
+        angle = np.arccos(cos_angle)
+        angles[i] = angle
+        if angle < 1e-6:
+            axes[i] = np.array([1.0, 0.0, 0.0])
+            continue
+        denom = 2.0 * np.sin(angle)
+        axis = np.array([
+            rot[2, 1] - rot[1, 2],
+            rot[0, 2] - rot[2, 0],
+            rot[1, 0] - rot[0, 1],
+        ]) / denom
+        axes[i] = axis
+    return axes, angles
+
+
 def main():
     orientation_path = Path("logs/orientation.csv")
     profile_path = Path("logs/profile_orientation.csv")
@@ -92,6 +116,37 @@ def main():
         axes[-1].set_xlabel("Time (s)")
 
         output_path = plots_dir / f"{axis_name.lower()}_axis_components.png"
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+
+    axis_actual, angle_actual = rotation_axis_angle(r_actual) if r_actual.size else (np.empty((0, 3)), np.array([]))
+    axis_profile, angle_profile = rotation_axis_angle(r_profile) if r_profile.size else (np.empty((0, 3)), np.array([]))
+
+    if t_actual.size or t_profile.size:
+        fig, axes = plt.subplots(4, 1, figsize=(10, 10), sharex=True, constrained_layout=True)
+        fig.suptitle("Rotation Axis Components and Angle (Actual vs Profile)")
+
+        for idx, name in enumerate(AXIS_NAMES):
+            ax = axes[idx]
+            if t_actual.size and axis_actual.size:
+                ax.step(t_actual, axis_actual[:, idx], where="post", color="#8B0000", lw=1.5, label="actual")
+            if t_profile.size and axis_profile.size:
+                ax.step(t_profile, axis_profile[:, idx], where="post", color="#003366", lw=1.5, label="profile")
+            ax.set_ylabel(f"Axis {name}")
+            ax.grid(True, alpha=0.3)
+            if idx == 0:
+                ax.legend(loc="upper right")
+
+        ax_angle = axes[3]
+        if t_actual.size and angle_actual.size:
+            ax_angle.step(t_actual, angle_actual, where="post", color="#8B0000", lw=1.5, label="actual")
+        if t_profile.size and angle_profile.size:
+            ax_angle.step(t_profile, angle_profile, where="post", color="#003366", lw=1.5, label="profile")
+        ax_angle.set_ylabel("Angle (rad)")
+        ax_angle.set_xlabel("Time (s)")
+        ax_angle.grid(True, alpha=0.3)
+
+        output_path = plots_dir / "rotation_axis_angle.png"
         fig.savefig(output_path, dpi=150)
         plt.close(fig)
 
