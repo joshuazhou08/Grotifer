@@ -60,5 +60,7 @@ double PIControl::calculate(double setpoint, double actualValue)
 
     // final output
     double u = p + integralPart_ + d;
-    return std::clamp(u, lLim_, hLim_);
+    signal_ = std::clamp(u, lLim_, hLim_);
+
+    return signal_;
 }

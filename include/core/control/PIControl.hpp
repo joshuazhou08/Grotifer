@@ -14,6 +14,7 @@ public:
     double getKi() const { return ki_; }
     double getKd() const { return kd_; }
     double getError() const { return error_; }
+    double getSignal() const {return signal_; }
 
     // Main controller calculation
     // Returns control signal based on setpoint and actual value
@@ -35,5 +36,8 @@ private:
     double integralPart_ = 0.0;
     double time_ = 0.0;
     double prevTime_ = 0.0;
+
+    // Last signal
+    double signal_ = 0.0;
 };
 

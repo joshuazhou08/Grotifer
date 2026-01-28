@@ -153,10 +153,13 @@ private:
     using OrientationRow = std::array<double, 10>; // timestep + 2 3 x 3 matrices (one for profile, one for actual)
     using VectorRow = std::array<double, 4>;       // timestep + 3 components
     using ProfileRow = std::array<double, 3>;      // timestep + profile angle + profile velocity
+    using ControlLoopRow = std::array<double, 7>;       // timestep + signal and error from each of the three loops
 
     LockFreeRingBuffer<OrientationRow, 256> *orientationQueue_;
     LockFreeRingBuffer<OrientationRow, 256> *profileOrientationQueue_;
     LockFreeRingBuffer<VectorRow, 256> *angularVelocityQueue_;
     LockFreeRingBuffer<VectorRow, 256> *profileAngularVelocityQueue_;
     LockFreeRingBuffer<ProfileRow, 256> *profileQueue_;
+    LockFreeRingBuffer<ControlLoopRow, 256> *positionControlLoopQueue_;
+    LockFreeRingBuffer<ControlLoopRow, 256> *velocityControlLoopQueue_;
 };

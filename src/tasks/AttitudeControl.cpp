@@ -341,6 +341,16 @@ int AttitudeControl::Run()
     orientationQueue_->push(orientationRow);
     angularVelocityQueue_->push(angularVelocityRow);
 
+    // Log
+    ControlLoopRow positionControlRow = {time, xPositionLoop.getSignal(), yPositionLoop.getSignal(), zPositionLoop.getSignal(), 
+        xPositionLoop.getError(), yPositionLoop.getError(), zPositionLoop.getError()};
+
+    ControlLoopRow velocityControlRow = {time, xVelocityLoop.getSignal(), yVelocityLoop.getSignal(), zVelocityLoop.getSignal(), 
+        xVelocityLoop.getError(), yVelocityLoop.getError(), zVelocityLoop.getError()};
+
+    positionControlLoopQueue_->push(positionControlRow);
+    velocityControlLoopQueue_->push(velocityControlRow);
+
     // Update preTime for next iteration
     preTime = time;
     timeEnd = GetTimeNow();
