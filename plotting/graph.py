@@ -37,6 +37,17 @@ def load_profile_scalar(path):
     return times, position, velocity
 
 
+def load_control_loop(path):
+    data = np.loadtxt(path, delimiter=",")
+    if data.size == 0:
+        return np.array([]), np.empty((0, 3)), np.empty((0, 3))
+    data = np.atleast_2d(data)
+    times = data[:, 0]
+    signals = data[:, 1:4]
+    errors = data[:, 4:7]
+    return times, signals, errors
+
+
 def rotation_axis_angle(rotations):
     if rotations.size == 0:
         return np.empty((0, 3)), np.array([])
@@ -71,6 +82,8 @@ def main():
     torp_left_profile_path = Path("logs/torp_left_profile.csv")
     torp_right_actual_path = Path("logs/torp_right_actual.csv")
     torp_right_profile_path = Path("logs/torp_right_profile.csv")
+    velocity_control_loop_path = Path("logs/velocity_control_loop.csv")
+    position_control_loop_path = Path("logs/position_control_loop.csv")
 
     if (
         not orientation_path.is_file()
@@ -82,12 +95,15 @@ def main():
         and not torp_left_profile_path.is_file()
         and not torp_right_actual_path.is_file()
         and not torp_right_profile_path.is_file()
+        and not velocity_control_loop_path.is_file()
+        and not position_control_loop_path.is_file()
     ):
         raise FileNotFoundError(
             "Missing logs/orientation.csv, logs/profile_orientation.csv, logs/profile.csv, "
             "logs/angular_velocity.csv, logs/profile_angular_velocity.csv, "
             "logs/torp_left_actual.csv, logs/torp_left_profile.csv, "
-            "logs/torp_right_actual.csv, and logs/torp_right_profile.csv"
+            "logs/torp_right_actual.csv, logs/torp_right_profile.csv, "
+            "logs/velocity_control_loop.csv, and logs/position_control_loop.csv"
         )
 
     t_actual, r_actual = load_rotations(orientation_path) if orientation_path.is_file() else (np.array([]), np.empty((0, 3, 3)))
@@ -226,6 +242,43 @@ def main():
         axes[1].grid(True, alpha=0.3)
 
         output_path = plots_dir / f"torp_{label}_position_velocity.png"
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+
+    for label, path in (
+        ("velocity", velocity_control_loop_path),
+        ("position", position_control_loop_path),
+    ):
+        if not path.is_file():
+            continue
+
+        t_loop, signals, errors = load_control_loop(path)
+        if not t_loop.size:
+            continue
+
+        fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True, constrained_layout=True)
+        fig.suptitle(f"{label.capitalize()} Control Loop Signals")
+        for idx, name in enumerate(AXIS_NAMES):
+            ax = axes[idx]
+            ax.step(t_loop, signals[:, idx], where="post", color="#003366", lw=1.5)
+            ax.set_ylabel(f"{name} signal")
+            ax.grid(True, alpha=0.3)
+        axes[-1].set_xlabel("Time (s)")
+
+        output_path = plots_dir / f"{label}_control_loop_signals.png"
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+
+        fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True, constrained_layout=True)
+        fig.suptitle(f"{label.capitalize()} Control Loop Errors")
+        for idx, name in enumerate(AXIS_NAMES):
+            ax = axes[idx]
+            ax.step(t_loop, errors[:, idx], where="post", color="#8B0000", lw=1.5)
+            ax.set_ylabel(f"{name} error")
+            ax.grid(True, alpha=0.3)
+        axes[-1].set_xlabel("Time (s)")
+
+        output_path = plots_dir / f"{label}_control_loop_errors.png"
         fig.savefig(output_path, dpi=150)
         plt.close(fig)
 
