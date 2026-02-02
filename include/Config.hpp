@@ -24,7 +24,7 @@ struct AttitudeConfig
     static inline constexpr double detumblingMaxDuration = 10;
 
     // --- Flags For Configuring Behavior --- //
-    static inline constexpr bool initialKick = false; // Perform initial kick to demonstrate detumbling capabilities
+    static inline bool initialKick = envOrDefault("INITIAL_KICK", false); // Perform initial kick to demonstrate detumbling capabilities
 
     static inline constexpr double deltaTaskTime = 100e-3;
 
@@ -84,7 +84,10 @@ struct AttitudeConfig
     static inline std::vector<RotationCommand> getRotationQueue()
     {
         return {
-            RotationCommand(Vector3d{0.0, 0.0, 1.0}, M_PI / 30.0),
+            RotationCommand(Vector3d{envOrDefault("AXIS_X_1", 0), envOrDefault("AXIS_Y_1", 0), envOrDefault("AXIS_Z_1", 0)}, envOrDefault("DEGREE_1", 0) * M_PI/180),
+            RotationCommand(Vector3d{envOrDefault("AXIS_X_2", 0), envOrDefault("AXIS_Y_2", 0), envOrDefault("AXIS_Z_2", 0)}, envOrDefault("DEGREE_2", 0) * M_PI/180), // 10 degrees
+            RotationCommand(Vector3d{envOrDefault("AXIS_X_3", 0), envOrDefault("AXIS_Y_3", 0), envOrDefault("AXIS_Z_3", 0)}, envOrDefault("DEGREE_3", 0) * M_PI/180), // 10 degrees
+
         };
     }
 };
@@ -92,7 +95,7 @@ struct AttitudeConfig
 struct TorpConfig
 {
 
-    static inline constexpr double deltaTaskTime = 150e-3;
+    static inline constexpr double deltaTaskTime = 100e-3;
     static inline constexpr double gearRatio = 31.1;
 
     // Torp Master Control values
@@ -120,5 +123,5 @@ struct TorpConfig
     // Run configuration flags
     static inline constexpr bool holdPosAfterDeployFlag = true;
     static inline constexpr bool sensorsOnlyFlag = false;
-    static inline constexpr bool controlBodyOnlyFlag = false; // If flag = true, torp state machine will not run
+    static inline bool controlBodyOnlyFlag = envOrDefault("CONTROL_BODY_ONLY", false); // If flag = true, torp state machine will not run
 };
