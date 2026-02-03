@@ -127,9 +127,9 @@ int Fan::writePort(uint8_t *buffer, size_t size)
     ssize_t result = write(fd_, buffer, size);
     if (result != static_cast<ssize_t>(size))
     {
-        std::cerr << "[Fan] write failed: "
-                  << std::strerror(errno) << " (" << result
-                  << "/" << size << " bytes written)" << std::endl;
+        cerr << "[Fan] write failed: "
+                  << strerror(errno) << " (" << result
+                  << "/" << size << " bytes written)" << endl;
         return -1;
     }
     return 0;
@@ -162,7 +162,7 @@ ssize_t Fan::readPort(uint8_t *buffer, size_t size)
 
 int Fan::setTarget(uint16_t target)
 {
-    target = std::clamp(target, minTarget_, maxTarget_);
+    target = clamp(target, minTarget_, maxTarget_);
     uint8_t command[2] = {
         static_cast<uint8_t>(0xC0 + (target & 0x1F)),
         static_cast<uint8_t>((target >> 5) & 0x7F)};
@@ -195,7 +195,7 @@ void Fan::moveFan(uint16_t target)
 
 uint16_t Fan::torqueToFanSpeed(double torque) const
 {
-    double speed = torqueToSpeed_ * std::abs(torque);
+    double speed = torqueToSpeed_ * sqrt(abs(torque));
     double deadband = 75.0;
     double target;
 
@@ -204,7 +204,7 @@ uint16_t Fan::torqueToFanSpeed(double torque) const
     else
         target = neutral_ - deadband - speed;
 
-    return static_cast<uint16_t>(std::clamp(target, (double)minTarget_, (double)maxTarget_));
+    return static_cast<uint16_t>(clamp(target, (double)minTarget_, (double)maxTarget_));
 }
 
 void Fan::applyTorque(const Vector3d &torqueCmd, double deltaT)
